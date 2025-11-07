@@ -1,15 +1,15 @@
 export function useEventColors() {
   const colorKeys = [
-    'blue',
-    'green', 
-    'yellow',
-    'purple',
-    'pink',
-    'indigo',
-    'red',
-    'orange',
-    'teal',
-    'cyan',
+    'gray',
+    'slate', 
+    'zinc',
+    'neutral',
+    'stone',
+    'gray',
+    'slate',
+    'zinc',
+    'neutral',
+    'stone',
   ] as const;
 
   type ColorKey = typeof colorKeys[number];
@@ -37,66 +37,51 @@ export function useEventColors() {
   // Legacy functions for backward compatibility
   const getColorForSession = (sessionId: string): string => {
     const key = getColorKeyForSession(sessionId);
-    return `bg-${key}-500`;
+    return `bg-${key}-700`;
   };
 
   const getColorForApp = (appName: string): string => {
     const key = getColorKeyForApp(appName);
-    return `bg-${key}-500`;
+    return `bg-${key}-700`;
   };
 
   const getGradientForSession = (sessionId: string): string => {
     const baseColor = getColorForSession(sessionId);
 
     const gradientMap: Record<string, string> = {
-      'bg-blue-500': 'from-blue-500 to-blue-600',
-      'bg-green-500': 'from-green-500 to-green-600',
-      'bg-yellow-500': 'from-yellow-500 to-yellow-600',
-      'bg-purple-500': 'from-purple-500 to-purple-600',
-      'bg-pink-500': 'from-pink-500 to-pink-600',
-      'bg-indigo-500': 'from-indigo-500 to-indigo-600',
-      'bg-red-500': 'from-red-500 to-red-600',
-      'bg-orange-500': 'from-orange-500 to-orange-600',
-      'bg-teal-500': 'from-teal-500 to-teal-600',
-      'bg-cyan-500': 'from-cyan-500 to-cyan-600',
+      'bg-gray-700': 'from-gray-700 to-gray-800',
+      'bg-slate-700': 'from-slate-700 to-slate-800',
+      'bg-zinc-700': 'from-zinc-700 to-zinc-800',
+      'bg-neutral-700': 'from-neutral-700 to-neutral-800',
+      'bg-stone-700': 'from-stone-700 to-stone-800',
     };
 
-    return `bg-gradient-to-r ${gradientMap[baseColor] || 'from-gray-500 to-gray-600'}`;
+    return `bg-gradient-to-r ${gradientMap[baseColor] || 'from-gray-700 to-gray-800'}`;
   };
 
   const getGradientForApp = (appName: string): string => {
     const baseColor = getColorForApp(appName);
 
     const gradientMap: Record<string, string> = {
-      'bg-blue-500': 'from-blue-500 to-blue-600',
-      'bg-green-500': 'from-green-500 to-green-600',
-      'bg-yellow-500': 'from-yellow-500 to-yellow-600',
-      'bg-purple-500': 'from-purple-500 to-purple-600',
-      'bg-pink-500': 'from-pink-500 to-pink-600',
-      'bg-indigo-500': 'from-indigo-500 to-indigo-600',
-      'bg-red-500': 'from-red-500 to-red-600',
-      'bg-orange-500': 'from-orange-500 to-orange-600',
-      'bg-teal-500': 'from-teal-500 to-teal-600',
-      'bg-cyan-500': 'from-cyan-500 to-cyan-600',
+      'bg-gray-700': 'from-gray-700 to-gray-800',
+      'bg-slate-700': 'from-slate-700 to-slate-800',
+      'bg-zinc-700': 'from-zinc-700 to-zinc-800',
+      'bg-neutral-700': 'from-neutral-700 to-neutral-800',
+      'bg-stone-700': 'from-stone-700 to-stone-800',
     };
 
-    return `bg-gradient-to-r ${gradientMap[baseColor] || 'from-gray-500 to-gray-600'}`;
+    return `bg-gradient-to-r ${gradientMap[baseColor] || 'from-gray-700 to-gray-800'}`;
   };
 
   const tailwindToHex = (tailwindClass: string): string => {
     const colorMap: Record<string, string> = {
-      'bg-blue-500': '#3B82F6',
-      'bg-green-500': '#22C55E',
-      'bg-yellow-500': '#EAB308',
-      'bg-purple-500': '#A855F7',
-      'bg-pink-500': '#EC4899',
-      'bg-indigo-500': '#6366F1',
-      'bg-red-500': '#EF4444',
-      'bg-orange-500': '#F97316',
-      'bg-teal-500': '#14B8A6',
-      'bg-cyan-500': '#06B6D4',
+      'bg-gray-700': '#374151',
+      'bg-slate-700': '#334155',
+      'bg-zinc-700': '#3f3f46',
+      'bg-neutral-700': '#404040',
+      'bg-stone-700': '#44403c',
     };
-    return colorMap[tailwindClass] || '#3B82F6';
+    return colorMap[tailwindClass] || '#374151';
   };
 
   const getHexColorForSession = (sessionId: string): string => {
@@ -106,8 +91,9 @@ export function useEventColors() {
 
   const getHexColorForApp = (appName: string): string => {
     const hash = hashString(appName);
-    const hue = hash % 360;
-    return `hsl(${hue}, 70%, 50%)`;
+    // Generate different gray lightness values between 35% and 50%
+    const lightness = 35 + (hash % 16); // Range: 35% - 50%
+    return `hsl(0, 0%, ${lightness}%)`;
   };
 
   return {

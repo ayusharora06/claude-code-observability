@@ -2,35 +2,40 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Dark theme CSS custom properties */
+/* Pure Dark Gray/Black Theme CSS custom properties */
 :root {
-  /* Dark theme colors - set as default */
-  --theme-primary: #3b82f6;
-  --theme-primary-hover: #2563eb;
-  --theme-primary-light: #60a5fa;
-  --theme-primary-dark: #1d4ed8;
+  /* Gray-only primary colors */
+  --theme-primary: #525252;
+  --theme-primary-hover: #404040;
+  --theme-primary-light: #737373;
+  --theme-primary-dark: #262626;
   
-  --theme-bg-primary: #111827;
-  --theme-bg-secondary: #1f2937;
-  --theme-bg-tertiary: #374151;
-  --theme-bg-quaternary: #4b5563;
+  /* Deep dark backgrounds */
+  --theme-bg-primary: #0a0a0a;
+  --theme-bg-secondary: #111111;
+  --theme-bg-tertiary: #1a1a1a;
+  --theme-bg-quaternary: #222222;
   
-  --theme-text-primary: #f9fafb;
-  --theme-text-secondary: #e5e7eb;
-  --theme-text-tertiary: #d1d5db;
-  --theme-text-quaternary: #9ca3af;
+  /* Light text close to white */
+  --theme-text-primary: #f8f9fa;
+  --theme-text-secondary: #e9ecef;
+  --theme-text-tertiary: #dee2e6;
+  --theme-text-quaternary: #adb5bd;
   
-  --theme-border-primary: #374151;
-  --theme-border-secondary: #4b5563;
-  --theme-border-tertiary: #6b7280;
+  /* Subtle dark borders */
+  --theme-border-primary: #2a2a2a;
+  --theme-border-secondary: #333333;
+  --theme-border-tertiary: #404040;
   
-  --theme-accent-success: #10b981;
-  --theme-accent-warning: #f59e0b;
-  --theme-accent-error: #ef4444;
-  --theme-accent-info: #3b82f6;
+  /* Gray-only accent colors */
+  --theme-accent-success: #6b7280;
+  --theme-accent-warning: #9ca3af;
+  --theme-accent-error: #4b5563;
+  --theme-accent-info: #525252;
   
-  --theme-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
-  --theme-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+  /* Enhanced shadows for dark theme */
+  --theme-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.6);
+  --theme-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.6);
   
   --theme-transition: all;
   --theme-transition-fast: color, background-color, border-color;

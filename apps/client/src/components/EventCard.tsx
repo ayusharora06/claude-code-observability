@@ -18,28 +18,28 @@ const cardVariants = {
 
 const colorVariants = {
   session: {
-    blue: "bg-gradient-to-r from-blue-500 to-blue-600",
-    green: "bg-gradient-to-r from-green-500 to-green-600",
-    yellow: "bg-gradient-to-r from-yellow-500 to-yellow-600",
-    purple: "bg-gradient-to-r from-purple-500 to-purple-600",
-    pink: "bg-gradient-to-r from-pink-500 to-pink-600",
-    indigo: "bg-gradient-to-r from-indigo-500 to-indigo-600",
-    red: "bg-gradient-to-r from-red-500 to-red-600",
-    orange: "bg-gradient-to-r from-orange-500 to-orange-600",
-    teal: "bg-gradient-to-r from-teal-500 to-teal-600",
-    cyan: "bg-gradient-to-r from-cyan-500 to-cyan-600"
+    gray: "bg-gradient-to-r from-gray-700 to-gray-800",
+    slate: "bg-gradient-to-r from-slate-700 to-slate-800",
+    zinc: "bg-gradient-to-r from-zinc-700 to-zinc-800",
+    neutral: "bg-gradient-to-r from-neutral-700 to-neutral-800",
+    stone: "bg-gradient-to-r from-stone-700 to-stone-800",
+    gray2: "bg-gradient-to-r from-gray-600 to-gray-700",
+    slate2: "bg-gradient-to-r from-slate-600 to-slate-700",
+    zinc2: "bg-gradient-to-r from-zinc-600 to-zinc-700",
+    neutral2: "bg-gradient-to-r from-neutral-600 to-neutral-700",
+    stone2: "bg-gradient-to-r from-stone-600 to-stone-700"
   },
   border: {
-    blue: "border-blue-500",
-    green: "border-green-500", 
-    yellow: "border-yellow-500",
-    purple: "border-purple-500",
-    pink: "border-pink-500",
-    indigo: "border-indigo-500",
-    red: "border-red-500",
-    orange: "border-orange-500",
-    teal: "border-teal-500",
-    cyan: "border-cyan-500"
+    gray: "border-gray-600",
+    slate: "border-slate-600", 
+    zinc: "border-zinc-600",
+    neutral: "border-neutral-600",
+    stone: "border-stone-600",
+    gray2: "border-gray-500",
+    slate2: "border-slate-500",
+    zinc2: "border-zinc-500",
+    neutral2: "border-neutral-500",
+    stone2: "border-stone-500"
   }
 };
 

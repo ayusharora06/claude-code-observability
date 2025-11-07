@@ -13,40 +13,40 @@ module.exports = {
         'short': {'raw': '(max-height: 400px)'}, // Custom breakpoint for height <= 400px
       },
       colors: {
-        // Dark theme colors only
+        // Pure gray dark theme colors
         'theme': {
-          'primary': '#3b82f6', // Blue primary
-          'primary-hover': '#2563eb',
-          'primary-light': '#60a5fa',
-          'primary-dark': '#1d4ed8',
+          'primary': '#525252', // Gray-600
+          'primary-hover': '#404040',
+          'primary-light': '#737373',
+          'primary-dark': '#262626',
           'bg': {
-            'primary': '#111827', // Very dark gray
-            'secondary': '#1f2937', // Dark gray
-            'tertiary': '#374151', // Medium gray
-            'quaternary': '#4b5563', // Light gray
+            'primary': '#0a0a0a', // Deep black
+            'secondary': '#111111', // Very dark gray
+            'tertiary': '#1a1a1a', // Dark gray
+            'quaternary': '#222222', // Medium dark gray
           },
           'text': {
-            'primary': '#f9fafb', // Almost white
-            'secondary': '#e5e7eb', // Light gray
-            'tertiary': '#d1d5db', // Medium gray
-            'quaternary': '#9ca3af', // Darker gray
+            'primary': '#f8f9fa', // Very light gray (almost white)
+            'secondary': '#e9ecef', // Light gray
+            'tertiary': '#dee2e6', // Medium light gray
+            'quaternary': '#adb5bd', // Medium gray
           },
           'border': {
-            'primary': '#374151', // Medium gray
-            'secondary': '#4b5563', // Light gray
-            'tertiary': '#6b7280', // Lighter gray
+            'primary': '#2a2a2a', // Subtle dark gray
+            'secondary': '#333333', // Dark gray
+            'tertiary': '#404040', // Medium dark gray
           },
           'accent': {
-            'success': '#10b981', // Green
-            'warning': '#f59e0b', // Orange
-            'error': '#ef4444', // Red
-            'info': '#3b82f6', // Blue
+            'success': '#6b7280', // Gray-500
+            'warning': '#9ca3af', // Gray-400
+            'error': '#4b5563', // Gray-600
+            'info': '#525252', // Gray-600
           }
         }
       },
       boxShadow: {
-        'theme': '0 4px 6px -1px rgba(0, 0, 0, 0.3)',
-        'theme-lg': '0 10px 15px -3px rgba(0, 0, 0, 0.3)',
+        'theme': '0 4px 6px -1px rgba(0, 0, 0, 0.6)',
+        'theme-lg': '0 10px 15px -3px rgba(0, 0, 0, 0.6)',
       },
       transitionProperty: {
         'theme': 'all',
@@ -56,20 +56,23 @@ module.exports = {
   },
   plugins: [],
   safelist: [
-    // Background colors
-    'bg-blue-500', 'bg-green-500', 'bg-yellow-500', 'bg-purple-500',
-    'bg-pink-500', 'bg-indigo-500', 'bg-red-500', 'bg-orange-500',
-    'bg-teal-500', 'bg-cyan-500',
-    // Border colors
-    'border-blue-500', 'border-green-500', 'border-yellow-500',
-    'border-purple-500', 'border-pink-500', 'border-indigo-500',
-    'border-red-500', 'border-orange-500', 'border-teal-500',
-    'border-cyan-500',
-    // Gradient colors
-    'from-blue-500', 'to-blue-600', 'from-green-500', 'to-green-600',
-    'from-yellow-500', 'to-yellow-600', 'from-purple-500', 'to-purple-600',
-    'from-pink-500', 'to-pink-600', 'from-indigo-500', 'to-indigo-600',
-    'from-red-500', 'to-red-600', 'from-orange-500', 'to-orange-600',
-    'from-teal-500', 'to-teal-600', 'from-cyan-500', 'to-cyan-600',
+    // Gray-only background colors
+    'bg-gray-600', 'bg-gray-700', 'bg-gray-800',
+    'bg-slate-600', 'bg-slate-700', 'bg-slate-800',
+    'bg-zinc-600', 'bg-zinc-700', 'bg-zinc-800',
+    'bg-neutral-600', 'bg-neutral-700', 'bg-neutral-800',
+    'bg-stone-600', 'bg-stone-700', 'bg-stone-800',
+    // Gray-only border colors  
+    'border-gray-500', 'border-gray-600', 'border-gray-700',
+    'border-slate-500', 'border-slate-600', 'border-slate-700',
+    'border-zinc-500', 'border-zinc-600', 'border-zinc-700',
+    'border-neutral-500', 'border-neutral-600', 'border-neutral-700',
+    'border-stone-500', 'border-stone-600', 'border-stone-700',
+    // Gray-only gradient colors
+    'from-gray-600', 'to-gray-700', 'from-gray-700', 'to-gray-800',
+    'from-slate-600', 'to-slate-700', 'from-slate-700', 'to-slate-800',
+    'from-zinc-600', 'to-zinc-700', 'from-zinc-700', 'to-zinc-800',
+    'from-neutral-600', 'to-neutral-700', 'from-neutral-700', 'to-neutral-800',
+    'from-stone-600', 'to-stone-700', 'from-stone-700', 'to-stone-800',
   ]
 }
