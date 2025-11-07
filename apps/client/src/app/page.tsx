@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { useWebSocket } from '@/hooks/useWebSocket';
+import { useFilters } from '@/hooks/useFilters';
 import { EventCard } from '@/components/EventCard';
+import { FilterPanel } from '@/components/FilterPanel';
 import { WS_URL } from '@/config';
 
 function LoadingState() {
@@ -20,57 +22,116 @@ function LoadingState() {
 
 function MainContent() {
   const { events, isConnected, error, clearEvents } = useWebSocket(WS_URL);
+  const { filters, filterOptions, filteredEvents, updateFilter, clearFilters, hasActiveFilters } = useFilters(events);
+  const [showFilters, setShowFilters] = useState(false);
 
   return (
-    <div className="min-h-screen bg-theme-bg-secondary p-4">
-      <header className="mb-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-theme-text-primary">
-            Multi-Agent Observability
-          </h1>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-theme-accent-success' : 'bg-theme-accent-error'}`}></div>
-              <span className="text-sm text-theme-text-secondary">
-                {isConnected ? 'Connected' : 'Disconnected'}
-              </span>
-            </div>
+    <div className="min-h-screen bg-theme-bg-secondary">
+      {/* Enhanced Header with Primary Theme Colors */}
+      <header className="bg-gradient-to-r from-theme-primary to-theme-primary-light shadow-lg border-b-2 border-theme-primary-dark">
+        <div className="px-3 py-4 mobile:py-1.5 mobile:px-2 flex items-center justify-between mobile:gap-2">
+          {/* Title Section - Hidden on mobile */}
+          <div className="mobile:hidden">
+            <h1 className="text-2xl font-bold text-white drop-shadow-lg">
+              Multi-Agent Observability
+            </h1>
+          </div>
+
+          {/* Connection Status */}
+          <div className="flex items-center mobile:space-x-1 space-x-1.5">
+            {isConnected ? (
+              <div className="flex items-center mobile:space-x-0.5 space-x-1.5">
+                <span className="relative flex mobile:h-2 mobile:w-2 h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full mobile:h-2 mobile:w-2 h-3 w-3 bg-green-500"></span>
+                </span>
+                <span className="text-base mobile:text-xs text-white font-semibold drop-shadow-md mobile:hidden">Connected</span>
+              </div>
+            ) : (
+              <div className="flex items-center mobile:space-x-0.5 space-x-1.5">
+                <span className="relative flex mobile:h-2 mobile:w-2 h-3 w-3">
+                  <span className="relative inline-flex rounded-full mobile:h-2 mobile:w-2 h-3 w-3 bg-red-500"></span>
+                </span>
+                <span className="text-base mobile:text-xs text-white font-semibold drop-shadow-md mobile:hidden">Disconnected</span>
+              </div>
+            )}
+          </div>
+
+          {/* Event Count and Action Buttons */}
+          <div className="flex items-center mobile:space-x-1 space-x-2">
+            <span className="text-base mobile:text-xs text-white font-semibold drop-shadow-md bg-theme-primary-dark mobile:px-2 mobile:py-0.5 px-3 py-1.5 rounded-full border border-white/30">
+              {filteredEvents.length}
+            </span>
+
+            {/* Clear Button */}
             <button
               onClick={clearEvents}
-              className="px-3 py-1 bg-theme-bg-tertiary hover:bg-theme-bg-quaternary text-theme-text-primary text-sm rounded border border-theme-border-primary transition-colors"
+              className="px-4 py-2 mobile:px-2 mobile:py-1 rounded-lg bg-white/20 hover:bg-white/30 transition-all duration-200 border border-white/30 hover:border-white/50 backdrop-blur-sm shadow-lg hover:shadow-xl text-white font-medium text-sm mobile:text-xs"
+              title="Clear events"
             >
-              Clear Events
+              Clear
+            </button>
+
+            {/* Filters Toggle Button */}
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="px-4 py-2 mobile:px-2 mobile:py-1 rounded-lg bg-white/20 hover:bg-white/30 transition-all duration-200 border border-white/30 hover:border-white/50 backdrop-blur-sm shadow-lg hover:shadow-xl text-white font-medium text-sm mobile:text-xs"
+              title={showFilters ? 'Hide filters' : 'Show filters'}
+            >
+              {showFilters ? 'Hide Filters' : 'Filters'}
             </button>
           </div>
         </div>
         
         {error && (
-          <div className="mt-2 p-3 bg-theme-accent-error/20 border border-theme-accent-error rounded text-theme-accent-error text-sm">
+          <div className="mx-3 mb-3 p-3 bg-red-500/20 border border-red-500 rounded text-red-100 text-sm">
             Error: {error}
           </div>
         )}
       </header>
 
-      <main>
+      {/* Filters Panel */}
+      {showFilters && (
+        <FilterPanel
+          filters={filters}
+          filterOptions={filterOptions}
+          onFilterChange={updateFilter}
+          onClearFilters={clearFilters}
+          hasActiveFilters={hasActiveFilters}
+        />
+      )}
+
+      <main className="p-4">
         <div className="mb-4">
           <h2 className="text-lg font-semibold text-theme-text-primary mb-2">
-            Real-time Events ({events.length})
+            Real-time Events ({filteredEvents.length}{events.length !== filteredEvents.length ? ` of ${events.length}` : ''})
           </h2>
         </div>
 
-        {events.length === 0 ? (
+        {filteredEvents.length === 0 ? (
           <div className="text-center py-12">
             <div className="text-6xl mb-4">🔍</div>
             <h3 className="text-xl font-medium text-theme-text-primary mb-2">
-              No events yet
+              {events.length === 0 ? 'No events yet' : 'No events match current filters'}
             </h3>
             <p className="text-theme-text-secondary">
-              Waiting for Claude Code hook events...
+              {events.length === 0 
+                ? 'Waiting for Claude Code hook events...' 
+                : 'Try adjusting your filters to see more events.'
+              }
             </p>
+            {hasActiveFilters && (
+              <button
+                onClick={clearFilters}
+                className="mt-4 px-4 py-2 bg-theme-primary hover:bg-theme-primary-dark text-white rounded-lg transition-colors"
+              >
+                Clear Filters
+              </button>
+            )}
           </div>
         ) : (
           <div className="space-y-4">
-            {events.slice().reverse().map((event, index) => (
+            {filteredEvents.slice().reverse().map((event, index) => (
               <EventCard key={event.id || index} event={event} />
             ))}
           </div>
