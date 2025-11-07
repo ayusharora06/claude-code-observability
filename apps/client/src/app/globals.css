@@ -1,0 +1,91 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Dark theme CSS custom properties */
+:root {
+  /* Dark theme colors - set as default */
+  --theme-primary: #3b82f6;
+  --theme-primary-hover: #2563eb;
+  --theme-primary-light: #60a5fa;
+  --theme-primary-dark: #1d4ed8;
+  
+  --theme-bg-primary: #111827;
+  --theme-bg-secondary: #1f2937;
+  --theme-bg-tertiary: #374151;
+  --theme-bg-quaternary: #4b5563;
+  
+  --theme-text-primary: #f9fafb;
+  --theme-text-secondary: #e5e7eb;
+  --theme-text-tertiary: #d1d5db;
+  --theme-text-quaternary: #9ca3af;
+  
+  --theme-border-primary: #374151;
+  --theme-border-secondary: #4b5563;
+  --theme-border-tertiary: #6b7280;
+  
+  --theme-accent-success: #10b981;
+  --theme-accent-warning: #f59e0b;
+  --theme-accent-error: #ef4444;
+  --theme-accent-info: #3b82f6;
+  
+  --theme-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+  --theme-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+  
+  --theme-transition: all;
+  --theme-transition-fast: color, background-color, border-color;
+}
+
+/* Dark theme applied via className="dark" in layout.tsx */
+
+body {
+  @apply bg-theme-bg-secondary text-theme-text-primary;
+  color: var(--theme-text-primary);
+  background: var(--theme-bg-secondary);
+}
+
+/* Component styles */
+.event-card {
+  @apply bg-theme-bg-primary border border-theme-border-primary rounded-lg p-4 shadow-theme hover:shadow-theme-lg transition-all duration-300;
+  animation: slideInUp 0.3s ease-out;
+}
+
+.event-card-header {
+  @apply flex items-center justify-between mb-3;
+}
+
+.badge {
+  @apply px-2 py-1 rounded text-xs font-medium;
+}
+
+.event-timestamp {
+  @apply text-xs text-theme-text-quaternary;
+}
+
+/* Animations for new events */
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* New event highlight */
+.event-card.new-event {
+  animation: slideInUp 0.3s ease-out, fadeIn 0.3s ease-out;
+  border-color: var(--theme-primary);
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
+}

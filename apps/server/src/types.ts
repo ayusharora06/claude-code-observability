@@ -136,24 +136,3 @@ export interface ApiResponse<T = any> {
   message?: string;
   validationErrors?: ThemeValidationError[];
 }
-
-// Additional types for theme management
-export interface ThemeCreateRequest {
-  name: string;
-  displayName: string;
-  description?: string;
-  colors: ThemeColors;
-  isPublic?: boolean;
-  authorId?: string;
-  authorName?: string;
-  tags?: string[];
-}
-
-export interface ThemeUpdateRequest {
-  name?: string;
-  displayName?: string;
-  description?: string;
-  colors?: ThemeColors;
-  isPublic?: boolean;
-  tags?: string[];
-}

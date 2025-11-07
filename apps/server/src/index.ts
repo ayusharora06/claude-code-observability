@@ -1,370 +1,384 @@
 import express from 'express';
 import cors from 'cors';
-import morgan from 'morgan';
 import { createServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
-import { ObservabilityDatabase } from './database';
-import type { HookEvent, HumanInTheLoopResponse, ThemeCreateRequest } from './types';
+import { initDatabase, insertEvent, getFilterOptions, getRecentEvents, updateEventHITLResponse } from './db';
+import type { HookEvent, HumanInTheLoopResponse } from './types';
+import { 
+  createTheme, 
+  updateThemeById, 
+  getThemeById, 
+  searchThemes, 
+  deleteThemeById, 
+  exportThemeById, 
+  importTheme,
+  getThemeStats 
+} from './theme';
 
-export class ObservabilityServer {
-  private app: express.Application;
-  private server: any;
-  private wss: WebSocketServer;
-  private database: ObservabilityDatabase;
-  private wsClients = new Set<WebSocket>();
+// Initialize database
+initDatabase();
 
-  constructor() {
-    this.app = express();
-    this.database = new ObservabilityDatabase();
-    
-    this.setupMiddleware();
-    this.setupRoutes();
-    this.setupWebSocket();
-  }
+// Store WebSocket clients
+const wsClients = new Set<WebSocket>();
 
-  private setupMiddleware(): void {
-    // CORS configuration
-    this.app.use(cors({
-      origin: ['http://localhost:3000', 'http://localhost:5173'],
-      credentials: true
-    }));
+// Helper function to send response to agent via WebSocket
+async function sendResponseToAgent(
+  wsUrl: string,
+  response: HumanInTheLoopResponse
+): Promise<void> {
+  console.log(`[HITL] Connecting to agent WebSocket: ${wsUrl}`);
 
-    this.app.use(morgan('combined'));
-    this.app.use(express.json({ limit: '50mb' }));
-    this.app.use(express.urlencoded({ extended: true, limit: '50mb' }));
-  }
+  return new Promise((resolve, reject) => {
+    let ws: WebSocket | null = null;
+    let isResolved = false;
 
-  private setupRoutes(): void {
-    // Health check
-    this.app.get('/health', (req, res) => {
-      res.json({ status: 'ok', timestamp: new Date().toISOString() });
-    });
-
-    // Events endpoints
-    this.app.post('/events', async (req, res) => {
-      try {
-        const eventData: HookEvent = req.body;
-        
-        // Validate required fields
-        if (!eventData.source_app || !eventData.session_id || !eventData.hook_event_type) {
-          return res.status(400).json({ 
-            error: 'Missing required fields: source_app, session_id, hook_event_type' 
-          });
+    const cleanup = () => {
+      if (ws) {
+        try {
+          ws.close();
+        } catch (e) {
+          // Ignore close errors
         }
-
-        const savedEvent = await this.database.insertEvent(eventData);
-        
-        // Broadcast to all WebSocket clients
-        this.broadcastToClients('new-event', savedEvent);
-
-        res.json(savedEvent);
-      } catch (error) {
-        console.error('Error saving event:', error);
-        res.status(500).json({ error: 'Failed to save event' });
       }
-    });
+    };
 
-    this.app.get('/events', async (req, res) => {
-      try {
-        const limit = parseInt(req.query.limit as string) || 100;
-        const events = await this.database.getRecentEvents(limit);
-        res.json(events);
-      } catch (error) {
-        console.error('Error fetching events:', error);
-        res.status(500).json({ error: 'Failed to fetch events' });
-      }
-    });
+    try {
+      ws = new WebSocket(wsUrl);
 
-    this.app.get('/filter-options', async (req, res) => {
-      try {
-        const options = await this.database.getFilterOptions();
-        res.json(options);
-      } catch (error) {
-        console.error('Error fetching filter options:', error);
-        res.status(500).json({ error: 'Failed to fetch filter options' });
-      }
-    });
+      ws.onopen = () => {
+        if (isResolved) return;
+        console.log('[HITL] WebSocket connection opened, sending response...');
 
-    // HITL endpoints
-    this.app.post('/hitl/respond', async (req, res) => {
-      try {
-        const response: HumanInTheLoopResponse = req.body;
-        
-        // Update the event with the HITL response
-        if (response.hookEvent.id) {
-          await this.database.updateEventHITLResponse(response.hookEvent.id, {
-            status: 'responded',
-            respondedAt: response.respondedAt,
-            response: response
-          });
-        }
+        try {
+          ws!.send(JSON.stringify(response));
+          console.log('[HITL] Response sent successfully');
 
-        // Send response back to the agent via WebSocket
-        if (response.hookEvent.humanInTheLoop?.responseWebSocketUrl) {
-          await this.sendResponseToAgent(
-            response.hookEvent.humanInTheLoop.responseWebSocketUrl,
-            response
-          );
-        }
-
-        res.json({ success: true });
-      } catch (error) {
-        console.error('Error processing HITL response:', error);
-        res.status(500).json({ error: 'Failed to process HITL response' });
-      }
-    });
-
-    // Theme endpoints
-    this.app.post('/themes', async (req, res) => {
-      try {
-        const themeData: ThemeCreateRequest = req.body;
-        
-        // Generate theme ID
-        const theme = {
-          id: `theme_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          ...themeData,
-          isPublic: themeData.isPublic ?? false,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-          downloadCount: 0,
-          rating: 0,
-          ratingCount: 0,
-          tags: themeData.tags || []
-        };
-
-        const savedTheme = await this.database.insertTheme(theme);
-        res.json(savedTheme);
-      } catch (error) {
-        console.error('Error creating theme:', error);
-        res.status(500).json({ error: 'Failed to create theme' });
-      }
-    });
-
-    this.app.get('/themes/search', async (req, res) => {
-      try {
-        const query = {
-          query: req.query.q as string,
-          tags: req.query.tags ? (req.query.tags as string).split(',') : undefined,
-          authorId: req.query.authorId as string,
-          isPublic: req.query.isPublic ? req.query.isPublic === 'true' : undefined,
-          sortBy: (req.query.sortBy as any) || 'updatedAt',
-          sortOrder: (req.query.sortOrder as any) || 'desc',
-          limit: req.query.limit ? parseInt(req.query.limit as string) : 50,
-          offset: req.query.offset ? parseInt(req.query.offset as string) : 0
-        };
-
-        const themes = await this.database.searchThemes(query);
-        res.json(themes);
-      } catch (error) {
-        console.error('Error searching themes:', error);
-        res.status(500).json({ error: 'Failed to search themes' });
-      }
-    });
-
-    this.app.get('/themes/:id', async (req, res) => {
-      try {
-        const theme = await this.database.getThemeById(req.params.id);
-        if (!theme) {
-          return res.status(404).json({ error: 'Theme not found' });
-        }
-        res.json(theme);
-      } catch (error) {
-        console.error('Error fetching theme:', error);
-        res.status(500).json({ error: 'Failed to fetch theme' });
-      }
-    });
-
-    this.app.put('/themes/:id', async (req, res) => {
-      try {
-        const updates = req.body;
-        const updatedTheme = await this.database.updateTheme(req.params.id, updates);
-        
-        if (!updatedTheme) {
-          return res.status(404).json({ error: 'Theme not found' });
-        }
-        
-        res.json(updatedTheme);
-      } catch (error) {
-        console.error('Error updating theme:', error);
-        res.status(500).json({ error: 'Failed to update theme' });
-      }
-    });
-
-    this.app.delete('/themes/:id', async (req, res) => {
-      try {
-        const deleted = await this.database.deleteTheme(req.params.id);
-        
-        if (!deleted) {
-          return res.status(404).json({ error: 'Theme not found' });
-        }
-        
-        res.json({ success: true });
-      } catch (error) {
-        console.error('Error deleting theme:', error);
-        res.status(500).json({ error: 'Failed to delete theme' });
-      }
-    });
-
-    this.app.post('/themes/:id/download', async (req, res) => {
-      try {
-        const theme = await this.database.incrementThemeDownloadCount(req.params.id);
-        
-        if (!theme) {
-          return res.status(404).json({ error: 'Theme not found' });
-        }
-        
-        res.json({ success: true });
-      } catch (error) {
-        console.error('Error incrementing download count:', error);
-        res.status(500).json({ error: 'Failed to increment download count' });
-      }
-    });
-  }
-
-  private setupWebSocket(): void {
-    this.server = createServer(this.app);
-    
-    this.wss = new WebSocketServer({ 
-      server: this.server,
-      path: '/ws'
-    });
-
-    this.wss.on('connection', (ws: WebSocket) => {
-      console.log('New WebSocket client connected');
-      this.wsClients.add(ws);
-
-      ws.on('close', () => {
-        console.log('WebSocket client disconnected');
-        this.wsClients.delete(ws);
-      });
-
-      ws.on('error', (error) => {
-        console.error('WebSocket error:', error);
-        this.wsClients.delete(ws);
-      });
-
-      // Send initial data
-      ws.send(JSON.stringify({
-        type: 'connected',
-        message: 'Connected to observability server'
-      }));
-    });
-  }
-
-  private broadcastToClients(type: string, data: any): void {
-    const message = JSON.stringify({ type, data });
-    
-    this.wsClients.forEach((ws) => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(message);
-      } else {
-        this.wsClients.delete(ws);
-      }
-    });
-  }
-
-  // Helper function to send response to agent via WebSocket
-  private async sendResponseToAgent(wsUrl: string, response: HumanInTheLoopResponse): Promise<void> {
-    console.log(`[HITL] Connecting to agent WebSocket: ${wsUrl}`);
-
-    return new Promise((resolve, reject) => {
-      let ws: WebSocket | null = null;
-      let isResolved = false;
-
-      const cleanup = () => {
-        if (ws) {
-          try {
-            ws.close();
-          } catch (e) {
-            // Ignore close errors
+          // Wait longer to ensure message fully transmits before closing
+          setTimeout(() => {
+            cleanup();
+            if (!isResolved) {
+              isResolved = true;
+              resolve();
+            }
+          }, 500);
+        } catch (error) {
+          console.error('[HITL] Error sending message:', error);
+          cleanup();
+          if (!isResolved) {
+            isResolved = true;
+            reject(error);
           }
         }
       };
 
-      try {
-        ws = new WebSocket(wsUrl);
-
-        ws.on('open', () => {
-          if (isResolved) return;
-          console.log('[HITL] WebSocket connection opened, sending response...');
-
-          try {
-            ws!.send(JSON.stringify(response));
-            console.log('[HITL] Response sent successfully');
-            isResolved = true;
-            cleanup();
-            resolve();
-          } catch (error) {
-            console.error('[HITL] Failed to send response:', error);
-            cleanup();
-            reject(error);
-          }
-        });
-
-        ws.on('error', (error) => {
-          if (isResolved) return;
-          console.error('[HITL] WebSocket connection error:', error);
+      ws.onerror = (error) => {
+        console.error('[HITL] WebSocket error:', error);
+        cleanup();
+        if (!isResolved) {
           isResolved = true;
-          cleanup();
           reject(error);
-        });
+        }
+      };
 
-        ws.on('close', () => {
-          if (isResolved) return;
-          console.log('[HITL] WebSocket connection closed');
-          isResolved = true;
+      ws.onclose = () => {
+        console.log('[HITL] WebSocket connection closed');
+      };
+
+      // Timeout after 5 seconds
+      setTimeout(() => {
+        if (!isResolved) {
+          console.error('[HITL] Timeout sending response to agent');
           cleanup();
-          resolve();
-        });
+          isResolved = true;
+          reject(new Error('Timeout sending response to agent'));
+        }
+      }, 5000);
 
-        // Set timeout
-        setTimeout(() => {
-          if (!isResolved) {
-            console.log('[HITL] WebSocket connection timeout');
-            isResolved = true;
-            cleanup();
-            reject(new Error('Connection timeout'));
-          }
-        }, 10000);
-      } catch (error) {
-        console.error('[HITL] Failed to create WebSocket:', error);
+    } catch (error) {
+      console.error('[HITL] Error creating WebSocket:', error);
+      cleanup();
+      if (!isResolved) {
+        isResolved = true;
         reject(error);
       }
-    });
-  }
-
-  public start(port: number = 4000): void {
-    this.server.listen(port, () => {
-      console.log(`🚀 Observability server started on port ${port}`);
-      console.log(`📊 Dashboard: http://localhost:3000`);
-      console.log(`🔌 WebSocket: ws://localhost:${port}/ws`);
-    });
-  }
-
-  public stop(): void {
-    this.wss.close();
-    this.server.close();
-    this.database.close();
-  }
-}
-
-// Start server if this file is run directly
-if (require.main === module) {
-  const server = new ObservabilityServer();
-  server.start();
-
-  // Graceful shutdown
-  process.on('SIGINT', () => {
-    console.log('\n🛑 Shutting down server...');
-    server.stop();
-    process.exit(0);
-  });
-
-  process.on('SIGTERM', () => {
-    console.log('\n🛑 Shutting down server...');
-    server.stop();
-    process.exit(0);
+    }
   });
 }
 
-export default ObservabilityServer;
+const app = express();
+const server = createServer(app);
+
+// CORS configuration
+app.use(cors({
+  origin: '*',
+  methods: 'GET,POST,PUT,DELETE,OPTIONS',
+  allowedHeaders: 'Content-Type'
+}));
+
+app.use(express.json({ limit: '50mb' }));
+
+// POST /events - Receive new events (matching Bun server exactly)
+app.post('/events', async (req, res) => {
+  try {
+    const event: HookEvent = req.body;
+    
+    // Validate required fields
+    if (!event.source_app || !event.session_id || !event.hook_event_type || !event.payload) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+    
+    // Insert event into database
+    const savedEvent = insertEvent(event);
+    
+    // Broadcast to all WebSocket clients (matching Bun format)
+    const message = JSON.stringify({ type: 'event', data: savedEvent });
+    wsClients.forEach(client => {
+      try {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(message);
+        }
+      } catch (err) {
+        // Client disconnected, remove from set
+        wsClients.delete(client);
+      }
+    });
+    
+    res.json(savedEvent);
+  } catch (error) {
+    console.error('Error processing event:', error);
+    res.status(400).json({ error: 'Invalid request' });
+  }
+});
+
+// GET /events/filter-options - Get available filter options
+app.get('/events/filter-options', (req, res) => {
+  const options = getFilterOptions();
+  res.json(options);
+});
+
+// GET /events/recent - Get recent events
+app.get('/events/recent', (req, res) => {
+  const limit = parseInt(req.query.limit as string || '300');
+  const events = getRecentEvents(limit);
+  res.json(events);
+});
+
+// POST /events/:id/respond - Respond to HITL request
+app.post('/events/:id/respond', async (req, res) => {
+  const id = parseInt(req.params.id);
+
+  try {
+    const response: HumanInTheLoopResponse = req.body;
+    response.respondedAt = Date.now();
+
+    // Update event in database
+    const updatedEvent = updateEventHITLResponse(id, response);
+
+    if (!updatedEvent) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+
+    // Send response to agent via WebSocket
+    if (updatedEvent.humanInTheLoop?.responseWebSocketUrl) {
+      try {
+        await sendResponseToAgent(
+          updatedEvent.humanInTheLoop.responseWebSocketUrl,
+          response
+        );
+      } catch (error) {
+        console.error('Failed to send response to agent:', error);
+        // Don't fail the request if we can't reach the agent
+      }
+    }
+
+    // Broadcast updated event to all connected clients
+    const message = JSON.stringify({ type: 'event', data: updatedEvent });
+    wsClients.forEach(client => {
+      try {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(message);
+        }
+      } catch (err) {
+        wsClients.delete(client);
+      }
+    });
+
+    res.json(updatedEvent);
+  } catch (error) {
+    console.error('Error processing HITL response:', error);
+    res.status(400).json({ error: 'Invalid request' });
+  }
+});
+
+// Theme API endpoints (matching Bun server exactly)
+
+// POST /api/themes - Create a new theme
+app.post('/api/themes', async (req, res) => {
+  try {
+    const themeData = req.body;
+    const result = await createTheme(themeData);
+    
+    const status = result.success ? 201 : 400;
+    res.status(status).json(result);
+  } catch (error) {
+    console.error('Error creating theme:', error);
+    res.status(400).json({ 
+      success: false, 
+      error: 'Invalid request body' 
+    });
+  }
+});
+
+// GET /api/themes - Search themes
+app.get('/api/themes', async (req, res) => {
+  const query = {
+    query: req.query.query as string || undefined,
+    isPublic: req.query.isPublic ? req.query.isPublic === 'true' : undefined,
+    authorId: req.query.authorId as string || undefined,
+    sortBy: req.query.sortBy as any || undefined,
+    sortOrder: req.query.sortOrder as any || undefined,
+    limit: req.query.limit ? parseInt(req.query.limit as string) : undefined,
+    offset: req.query.offset ? parseInt(req.query.offset as string) : undefined,
+  };
+  
+  const result = await searchThemes(query);
+  res.json(result);
+});
+
+// GET /api/themes/:id - Get a specific theme
+app.get('/api/themes/:id', async (req, res) => {
+  const id = req.params.id;
+  if (!id) {
+    return res.status(400).json({ 
+      success: false, 
+      error: 'Theme ID is required' 
+    });
+  }
+  
+  const result = await getThemeById(id);
+  const status = result.success ? 200 : 404;
+  res.status(status).json(result);
+});
+
+// PUT /api/themes/:id - Update a theme
+app.put('/api/themes/:id', async (req, res) => {
+  const id = req.params.id;
+  if (!id) {
+    return res.status(400).json({ 
+      success: false, 
+      error: 'Theme ID is required' 
+    });
+  }
+  
+  try {
+    const updates = req.body;
+    const result = await updateThemeById(id, updates);
+    
+    const status = result.success ? 200 : 400;
+    res.status(status).json(result);
+  } catch (error) {
+    console.error('Error updating theme:', error);
+    res.status(400).json({ 
+      success: false, 
+      error: 'Invalid request body' 
+    });
+  }
+});
+
+// DELETE /api/themes/:id - Delete a theme
+app.delete('/api/themes/:id', async (req, res) => {
+  const id = req.params.id;
+  if (!id) {
+    return res.status(400).json({ 
+      success: false, 
+      error: 'Theme ID is required' 
+    });
+  }
+  
+  const authorId = req.query.authorId as string;
+  const result = await deleteThemeById(id, authorId || undefined);
+  
+  const status = result.success ? 200 : (result.error?.includes('not found') ? 404 : 403);
+  res.status(status).json(result);
+});
+
+// GET /api/themes/:id/export - Export a theme
+app.get('/api/themes/:id/export', async (req, res) => {
+  const id = req.params.id;
+  
+  const result = await exportThemeById(id);
+  if (!result.success) {
+    const status = result.error?.includes('not found') ? 404 : 400;
+    return res.status(status).json(result);
+  }
+  
+  res.setHeader('Content-Disposition', `attachment; filename="${result.data.theme.name}.json"`);
+  res.json(result.data);
+});
+
+// POST /api/themes/import - Import a theme
+app.post('/api/themes/import', async (req, res) => {
+  try {
+    const importData = req.body;
+    const authorId = req.query.authorId as string;
+    
+    const result = await importTheme(importData, authorId || undefined);
+    
+    const status = result.success ? 201 : 400;
+    res.status(status).json(result);
+  } catch (error) {
+    console.error('Error importing theme:', error);
+    res.status(400).json({ 
+      success: false, 
+      error: 'Invalid import data' 
+    });
+  }
+});
+
+// GET /api/themes/stats - Get theme statistics
+app.get('/api/themes/stats', async (req, res) => {
+  const result = await getThemeStats();
+  res.json(result);
+});
+
+// Default response
+app.get('/', (req, res) => {
+  res.send('Multi-Agent Observability Server');
+});
+
+// WebSocket server setup
+const wss = new WebSocketServer({ 
+  server,
+  path: '/stream'
+});
+
+wss.on('connection', (ws) => {
+  console.log('WebSocket client connected');
+  wsClients.add(ws);
+  
+  // Send recent events on connection (matching Bun format exactly)
+  const events = getRecentEvents(300);
+  ws.send(JSON.stringify({ type: 'initial', data: events }));
+
+  ws.on('message', (message) => {
+    // Handle any client messages if needed
+    console.log('Received message:', message.toString());
+  });
+
+  ws.on('close', () => {
+    console.log('WebSocket client disconnected');
+    wsClients.delete(ws);
+  });
+
+  ws.on('error', (error) => {
+    console.error('WebSocket error:', error);
+    wsClients.delete(ws);
+  });
+});
+
+const PORT = parseInt(process.env.SERVER_PORT || '4000');
+server.listen(PORT, () => {
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
+  console.log(`📊 WebSocket endpoint: ws://localhost:${PORT}/stream`);
+  console.log(`📮 POST events to: http://localhost:${PORT}/events`);
+});
