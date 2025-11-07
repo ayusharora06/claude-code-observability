@@ -7,7 +7,10 @@ import json
 import sys
 import re
 from pathlib import Path
+
+
 from utils.constants import ensure_session_log_dir
+from utils.patterns import SecurityPatterns, RiskLevel
 
 # Allowed directories where rm -rf is permitted
 ALLOWED_RM_DIRECTORIES = [
@@ -168,22 +171,36 @@ def main():
         tool_name = input_data.get('tool_name', '')
         tool_input = input_data.get('tool_input', {})
 
-        # Check for .env file access (blocks access to sensitive environment files)
-        # COMMENTED OUT: Allows worktree command to create .env files automatically
-        # if is_env_file_access(tool_name, tool_input):
-        #     print("BLOCKED: Access to .env files containing sensitive data is prohibited", file=sys.stderr)
-        #     print("Use .env.sample for template files instead", file=sys.stderr)
-        #     sys.exit(2)  # Exit code 2 blocks tool call and shows error to Claude
-
-        # Check for dangerous rm -rf commands
+        # Initialize comprehensive security patterns checker
+        security_patterns = SecurityPatterns()
+        
+        # Perform comprehensive security assessment
+        security_risk = security_patterns.check_tool_use(tool_name, tool_input)
+        
+        # Block CRITICAL and HIGH risk operations
+        if security_risk.level in [RiskLevel.CRITICAL, RiskLevel.HIGH]:
+            print(f"🚫 BLOCKED: {security_risk.category}", file=sys.stderr)
+            print(f"📋 Details: {security_risk.message}", file=sys.stderr)
+            if security_risk.recommendation:
+                print(f"💡 Recommendation: {security_risk.recommendation}", file=sys.stderr)
+            if security_risk.pattern_matched:
+                print(f"🔍 Pattern: {security_risk.pattern_matched}", file=sys.stderr)
+            sys.exit(2)  # Exit code 2 blocks tool call and shows error to Claude
+        
+        # Special handling for rm commands - preserve existing allowed directories logic
         if tool_name == 'Bash':
             command = tool_input.get('command', '')
-
             # Block rm -rf commands unless they target allowed directories
             if is_dangerous_rm_command(command, ALLOWED_RM_DIRECTORIES):
                 print("BLOCKED: Dangerous rm command detected and prevented", file=sys.stderr)
                 print(f"Tip: rm -rf is only allowed in these directories: {', '.join(ALLOWED_RM_DIRECTORIES)}", file=sys.stderr)
                 sys.exit(2)  # Exit code 2 blocks tool call and shows error to Claude
+        
+        # Warn about MEDIUM risk operations but allow them
+        if security_risk.level == RiskLevel.MEDIUM:
+            print(f"⚠️ WARNING: {security_risk.message}", file=sys.stderr)
+            if security_risk.recommendation:
+                print(f"💡 Recommendation: {security_risk.recommendation}", file=sys.stderr)
         
         # Extract session_id
         session_id = input_data.get('session_id', 'unknown')
