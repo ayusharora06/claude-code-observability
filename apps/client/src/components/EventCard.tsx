@@ -85,6 +85,7 @@ export function EventCard({ event }: EventCardProps) {
     
     if (event.hook_event_type === 'UserPromptSubmit' && payload.prompt) {
       return {
+        icon: '💬',
         tool: 'Prompt:',
         detail: `"${payload.prompt.slice(0, 100)}${payload.prompt.length > 100 ? '...' : ''}"`
       };
@@ -93,6 +94,7 @@ export function EventCard({ event }: EventCardProps) {
     if (event.hook_event_type === 'PreCompact') {
       const trigger = payload.trigger || 'unknown';
       return {
+        icon: '📦',
         tool: 'Compaction:',
         detail: trigger === 'manual' ? 'Manual compaction' : 'Auto-compaction (full context)'
       };
@@ -106,13 +108,32 @@ export function EventCard({ event }: EventCardProps) {
         'clear': 'Fresh session'
       };
       return {
+        icon: '🎯',
         tool: 'Session:',
         detail: sourceLabels[source] || source
       };
     }
     
     if (payload.tool_name) {
-      const info: { tool: string; detail?: string } = { tool: payload.tool_name };
+      let icon = '🔧'; // Default tool icon
+      
+      // Assign specific icons based on tool name
+      if (payload.tool_name.toLowerCase().includes('read')) {
+        icon = '📖';
+      } else if (payload.tool_name.toLowerCase().includes('write') || payload.tool_name.toLowerCase().includes('edit')) {
+        icon = '✏️';
+      } else if (payload.tool_name.toLowerCase().includes('bash') || payload.tool_name.toLowerCase().includes('command')) {
+        icon = '⚡';
+      } else if (payload.tool_name.toLowerCase().includes('search') || payload.tool_name.toLowerCase().includes('grep')) {
+        icon = '🔍';
+      } else if (payload.tool_name.toLowerCase().includes('web') || payload.tool_name.toLowerCase().includes('fetch')) {
+        icon = '🌐';
+      }
+      
+      const info: { icon: string; tool: string; detail?: string } = { 
+        icon, 
+        tool: payload.tool_name 
+      };
       
       if (payload.tool_input) {
         if (payload.tool_input.command) {
@@ -127,7 +148,11 @@ export function EventCard({ event }: EventCardProps) {
       return info;
     }
     
-    return null;
+    return {
+      icon: '📄',
+      tool: 'Event:',
+      detail: event.hook_event_type
+    };
   };
 
   const sessionIdShort = event.session_id.slice(0, 8);
@@ -203,57 +228,70 @@ export function EventCard({ event }: EventCardProps) {
           <div className={`absolute left-3 top-0 bottom-0 w-1.5 ${sessionGradient}`} />
           
           <div className="ml-4">
-            {/* Header with app, session, event type, and time */}
-            <div className="flex items-center justify-between mb-2">
+            {/* New Header Layout: Topic | Hook Name | Session ──── App Name */}
+            <div className="flex items-start justify-between mb-2">
               <div className="flex items-center space-x-4">
+                {/* Topic with Icon (Top Left) */}
+                {toolInfo && (
+                  <div className="flex items-center space-x-2">
+                    <span className="text-lg">{toolInfo.icon}</span>
+                    <span className="font-medium text-theme-text-primary">
+                      {toolInfo.tool}
+                    </span>
+                    {toolInfo.detail && (
+                      <span className={`text-sm text-theme-text-tertiary ${event.hook_event_type === 'UserPromptSubmit' ? 'italic' : ''}`}>
+                        {toolInfo.detail}
+                      </span>
+                    )}
+                  </div>
+                )}
+                
+                {/* Hook Name */}
+                <span className="inline-flex items-center px-3 py-0.5 rounded-full text-sm font-bold bg-theme-primary text-white shadow-lg">
+                  <span className="mr-1.5 text-base">{hookEmoji}</span>
+                  {event.hook_event_type}
+                </span>
+                
+                {/* Session ID */}
+                <span className={`text-sm text-theme-text-secondary px-2 py-0.5 rounded-full border bg-theme-bg-tertiary/50 shadow-md ${sessionBorder}`}>
+                  {sessionIdShort}
+                </span>
+              </div>
+              
+              {/* Right Side: App Name + Time */}
+              <div className="flex flex-col items-end">
                 <span
                   className="text-base font-bold text-theme-text-primary px-2 py-0.5 rounded-full border-2 bg-theme-bg-tertiary shadow-lg"
                   style={{ backgroundColor: appHexColor + '33', borderColor: appHexColor }}
                 >
                   {event.source_app}
                 </span>
-                <span className={`text-sm text-theme-text-secondary px-2 py-0.5 rounded-full border bg-theme-bg-tertiary/50 shadow-md ${sessionBorder}`}>
-                  {sessionIdShort}
-                </span>
-                {event.model_name && (
-                  <span className="text-sm text-theme-text-secondary px-2 py-0.5 rounded-full border bg-theme-bg-tertiary/50 shadow-md" title={`Model: ${event.model_name}`}>
-                    <span className="mr-1">🧠</span>{formatModelName(event.model_name)}
-                  </span>
-                )}
-                <span className="inline-flex items-center px-3 py-0.5 rounded-full text-sm font-bold bg-theme-primary text-white shadow-lg">
-                  <span className="mr-1.5 text-base">{hookEmoji}</span>
-                  {event.hook_event_type}
+                <span className="text-sm text-theme-text-tertiary font-semibold mt-1">
+                  {formatTime(event.timestamp)}
                 </span>
               </div>
-              <span className="text-sm text-theme-text-tertiary font-semibold">
-                {formatTime(event.timestamp)}
-              </span>
             </div>
             
-            {/* Tool info and Summary */}
-            <div className="flex items-center justify-between mb-2">
-              {toolInfo && (
-                <div className="text-base text-theme-text-secondary font-semibold">
-                  <span className="font-medium italic px-2 py-0.5 rounded border-2 border-theme-primary bg-theme-primary-light shadow-sm">
-                    {toolInfo.tool}
-                  </span>
-                  {toolInfo.detail && (
-                    <span className={`ml-2 text-theme-text-tertiary ${event.hook_event_type === 'UserPromptSubmit' ? 'italic' : ''}`}>
-                      {toolInfo.detail}
-                    </span>
-                  )}
-                </div>
-              )}
-              
-              {event.summary && (
-                <div className="max-w-[50%] px-3 py-1.5 bg-theme-primary/10 border border-theme-primary/30 rounded-lg shadow-md">
+            {/* Model Info Row (if available) */}
+            {event.model_name && (
+              <div className="flex items-center mb-2">
+                <span className="text-sm text-theme-text-secondary px-2 py-0.5 rounded-full border bg-theme-bg-tertiary/50 shadow-md" title={`Model: ${event.model_name}`}>
+                  <span className="mr-1">🧠</span>{formatModelName(event.model_name)}
+                </span>
+              </div>
+            )}
+            
+            {/* Summary */}
+            {event.summary && (
+              <div className="flex justify-center mb-2">
+                <div className="px-3 py-1.5 bg-theme-primary/10 border border-theme-primary/30 rounded-lg shadow-md">
                   <span className="text-sm text-theme-text-primary font-semibold">
                     <span className="mr-1">📝</span>
                     {event.summary}
                   </span>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
             
             {/* Expanded content */}
             {isExpanded && (
