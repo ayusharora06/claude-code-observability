@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100;
+  }
+}
+
+@layer components {
+  .event-card {
+    @apply bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow;
+  }
+  
+  .event-card-header {
+    @apply flex items-center justify-between mb-3;
+  }
+  
+  .badge {
+    @apply px-2 py-1 rounded text-xs font-medium;
+  }
+  
+  .event-timestamp {
+    @apply text-xs text-gray-500 dark:text-gray-400;
+  }
+}

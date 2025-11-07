@@ -1,0 +1,166 @@
+# Claude Code Observability System
+
+A complete observability system for Claude Code hooks using Express.js + Next.js, providing real-time monitoring of Claude Code operations.
+
+## 🏗️ Architecture
+
+```
+claude-code-observability/
+├── .claude/                    # Claude Code hook scripts and configuration
+│   ├── hooks/                 # Python hook scripts for all events
+│   └── settings.json         # Hook configuration pointing to observability server
+├── apps/
+│   ├── server/               # Express.js backend with SQLite
+│   │   ├── src/
+│   │   │   ├── index.ts      # Main server with WebSocket support
+│   │   │   ├── database.ts   # SQLite database with full schema
+│   │   │   └── types.ts      # TypeScript interfaces
+│   │   └── package.json      # Express dependencies
+│   └── client/               # Next.js frontend
+│       ├── src/
+│       │   ├── pages/        # Next.js pages (dashboard)
+│       │   └── styles/       # Tailwind CSS styling
+│       └── package.json      # Next.js dependencies
+└── README.md                 # This file
+```
+
+## ✨ Features
+
+### Implemented
+- ✅ **Complete Hook Integration**: All Claude Code hook events captured
+- ✅ **Express.js Backend**: RESTful API with SQLite database
+- ✅ **Real-time WebSocket**: Live event streaming
+- ✅ **Next.js Frontend**: Modern React dashboard
+- ✅ **Event Display**: Beautiful event cards with timestamps
+- ✅ **Hook Chain Fix**: UserPromptSubmit now captures prompt content correctly
+- ✅ **Complete Database Schema**: Events, themes, theme shares, and ratings tables
+- ✅ **HITL Support**: Human-in-the-Loop workflow infrastructure
+- ✅ **Theme Management**: Complete theme CRUD operations
+
+### Ready for Extension
+- 🔧 **Advanced Filtering**: Backend supports full filtering by source app, session, event type
+- 🔧 **Agent Visualization**: AgentSwimLane and LivePulseChart components ready to implement
+- 🔧 **Theme Sharing**: Complete theme sharing and rating system in database
+- 🔧 **Export/Import**: Theme export and import functionality ready
+
+## 🚀 Quick Start
+
+### 1. Start the Backend
+```bash
+cd apps/server
+npm install
+npm run dev
+# Server starts on http://localhost:4000
+```
+
+### 2. Start the Frontend
+```bash
+cd apps/client
+npm install
+npm run dev
+# Dashboard available at http://localhost:3000
+```
+
+### 3. Configure Claude Code
+The hooks are already configured in `.claude/settings.json`. When you use Claude Code in this project directory, all events will be automatically captured.
+
+## 🔧 Key Components
+
+### Backend (Express.js)
+- **Server**: `apps/server/src/index.ts` - Express server with WebSocket support
+- **Database**: `apps/server/src/database.ts` - SQLite with complete schema
+- **Types**: `apps/server/src/types.ts` - TypeScript interfaces
+
+### Frontend (Next.js)
+- **Dashboard**: `apps/client/src/pages/index.tsx` - Main observability dashboard
+- **Styling**: `apps/client/src/styles/globals.css` - Tailwind CSS styles
+
+### Hooks System
+- **Configuration**: `.claude/settings.json` - Hook event bindings
+- **Scripts**: `.claude/hooks/` - Python scripts for each hook type
+- **Key Fix**: `user_prompt_submit.py` includes data passing to fix empty prompt issue
+
+## 📊 API Endpoints
+
+### Events
+- `GET /events` - Fetch recent events
+- `POST /events` - Create new event (used by hooks)
+- `GET /filter-options` - Get available filter options
+
+### Themes
+- `POST /themes` - Create theme
+- `GET /themes/search` - Search themes
+- `GET /themes/:id` - Get theme by ID
+- `PUT /themes/:id` - Update theme
+- `DELETE /themes/:id` - Delete theme
+
+### HITL (Human-in-the-Loop)
+- `POST /hitl/respond` - Submit HITL response
+
+### System
+- `GET /health` - Health check
+- WebSocket: `ws://localhost:4000/ws` - Real-time event streaming
+
+## 🐛 Troubleshooting
+
+### Hook Events Not Appearing
+1. Ensure both servers are running (ports 3000 and 4000)
+2. Check that you're running Claude Code from this project directory
+3. Verify `.claude/settings.json` points to correct server URL
+4. Check server logs for incoming events
+
+### Empty Prompt in UserPromptSubmit Events
+This issue has been fixed by modifying `user_prompt_submit.py` to properly pass data between hook scripts in the chain.
+
+## 🔄 Technology Stack
+
+| Component | Technology | Purpose |
+|-----------|------------|---------|
+| Backend | Express.js + TypeScript | RESTful API server |
+| Database | SQLite3 | Event storage and persistence |
+| WebSocket | ws library | Real-time event streaming |
+| Frontend | Next.js + React | Modern dashboard UI |
+| Styling | Tailwind CSS | Responsive design |
+| Hooks | Python + uv | Claude Code event capture |
+
+## 📈 Next Steps
+
+To extend this system with full feature parity to the original:
+
+1. **Add Advanced UI Components**:
+   - AgentSwimLane visualization
+   - LivePulseChart for real-time metrics
+   - Advanced filtering interface
+
+2. **Implement Theme Features**:
+   - Theme marketplace UI
+   - Import/export functionality
+   - Theme preview system
+
+3. **Add HITL Interface**:
+   - Permission request UI
+   - Response handling interface
+   - Timeout management
+
+4. **Performance Enhancements**:
+   - Event pagination
+   - WebSocket reconnection
+   - Error boundaries
+
+## 💡 Key Insight
+
+The core empty prompt issue was caused by **hook chaining** - when multiple hook scripts are executed in sequence, the first script consumed all stdin data, leaving nothing for subsequent scripts. This was fixed by adding:
+
+```python
+# In user_prompt_submit.py
+print(json.dumps(input_data))  # Pass data to next script
+```
+
+This simple change ensures `send_event.py` receives the complete hook data, including the actual prompt content.
+
+---
+
+**Status**: ✅ **Complete and functional**  
+**Servers**: Backend (Express) on :4000, Frontend (Next.js) on :3000  
+**Hooks**: Fully configured and working  
+**Database**: SQLite with complete schema initialized  
