@@ -27,8 +27,8 @@ export function ViewSwitcher({
             }
           `}
         >
-          <span className="text-lg">📋</span>
-          <span>Master View</span>
+          <span className="text-lg">⏱️</span>
+          <span>Timeline</span>
           <span className="bg-theme-primary/10 text-theme-primary text-xs px-2 py-1 rounded-full font-semibold">
             {eventCount}
           </span>
@@ -56,8 +56,8 @@ export function ViewSwitcher({
       <div className="hidden md:block">
         <p className="text-sm text-theme-text-tertiary">
           {currentView === 'master' 
-            ? 'Detailed event timeline with advanced filtering'
-            : 'Windows 8-style topic tiles with project filtering'
+            ? 'Compact timeline with all events from all sessions'
+            : 'Windows 8-style topic tiles with conversation grouping'
           }
         </p>
       </div>

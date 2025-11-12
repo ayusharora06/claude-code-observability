@@ -4,9 +4,11 @@ import { useState, useEffect, useMemo } from 'react';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { useFilters } from '@/hooks/useFilters';
 import { EventCard } from '@/components/EventCard';
+import { CompactEventCard } from '@/components/CompactEventCard';
 import { FilterPanel } from '@/components/FilterPanel';
 import { ViewSwitcher } from '@/components/ViewSwitcher';
 import { TopicView } from '@/components/TopicView';
+import { ChatView } from '@/components/ChatView';
 import { useEventColors } from '@/hooks/useEventColors';
 import { WS_URL } from '@/config';
 
@@ -124,15 +126,39 @@ function MainContent() {
           topicCount={topicCount}
         />
 
-        {/* Master View - Traditional Event List */}
+        {/* Master View - Compact Timeline */}
         {currentView === 'master' && (
           <div>
-            <div className="mb-4">
-              <h2 className="text-lg font-semibold text-theme-text-primary mb-2">
-                Real-time Events ({filteredEvents.length}{events.length !== filteredEvents.length ? ` of ${events.length}` : ''})
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-theme-text-primary">
+                ⏱️ Timeline View ({filteredEvents.length} events)
               </h2>
+              <div className="flex items-center gap-2">
+                {hasActiveFilters && (
+                  <button
+                    onClick={clearFilters}
+                    className="px-3 py-1.5 text-sm bg-theme-primary hover:bg-theme-primary-dark text-white rounded-lg transition-colors"
+                  >
+                    Clear Filters
+                  </button>
+                )}
+                {/* Active Sessions Indicator */}
+                <div className="flex items-center gap-2">
+                  {[...new Set(filteredEvents.slice(-10).map(e => e.session_id))].map(sessionId => {
+                    const { getTopicColors } = useEventColors();
+                    const colors = getTopicColors(sessionId);
+                    return (
+                      <div
+                        key={sessionId}
+                        className={`w-3 h-3 rounded-full ${colors.background}`}
+                        title={`Session: ${sessionId.slice(-6)}`}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
             </div>
-
+            
             {filteredEvents.length === 0 ? (
               <div className="text-center py-12">
                 <div className="text-6xl mb-4">🔍</div>
@@ -145,23 +171,20 @@ function MainContent() {
                     : 'Try adjusting your filters to see more events.'
                   }
                 </p>
-                {hasActiveFilters && (
-                  <button
-                    onClick={clearFilters}
-                    className="mt-4 px-4 py-2 bg-theme-primary hover:bg-theme-primary-dark text-white rounded-lg transition-colors"
-                  >
-                    Clear Filters
-                  </button>
-                )}
               </div>
             ) : (
-              <div className="space-y-4">
-                {filteredEvents.slice().reverse().map((event, index) => (
-                  <EventCard 
-                    key={`${event.id || 'e'}-${event.session_id}-${event.timestamp || index}`} 
-                    event={event} 
-                  />
-                ))}
+              <div className="relative">
+                {/* Timeline Container */}
+                <div className="space-y-0">
+                  {filteredEvents.slice().reverse().map((event, index) => (
+                    <CompactEventCard 
+                      key={`${event.id || 'e'}-${event.session_id}-${event.timestamp || index}`} 
+                      event={event}
+                      isFirst={index === 0}
+                      isLast={index === filteredEvents.length - 1}
+                    />
+                  ))}
+                </div>
               </div>
             )}
           </div>
