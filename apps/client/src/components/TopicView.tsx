@@ -36,6 +36,7 @@ interface TopicGroup {
 export function TopicView({ events, selectedProject, onProjectChange }: TopicViewProps) {
   const { getEventType, getEventColors, getTopicColors } = useEventColors();
   const [selectedConversation, setSelectedConversation] = useState<ConversationGroup | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<TopicGroup | null>(null);
   const [viewMode, setViewMode] = useState<'conversations' | 'categories'>('conversations');
   
   // Get unique projects from events
@@ -312,6 +313,7 @@ export function TopicView({ events, selectedProject, onProjectChange }: TopicVie
           {topicGroups.map((group, index) => (
           <div
             key={group.type}
+            onClick={() => setSelectedCategory(group)}
             className={`
               ${getTileSize(index, group.count)}
               bg-${group.color} 
@@ -443,6 +445,103 @@ export function TopicView({ events, selectedProject, onProjectChange }: TopicVie
                 </div>
                 <div>
                   <span className="font-medium">Tools Used:</span> {selectedConversation.toolCount}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Category Detail Modal */}
+      {selectedCategory && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[80vh] overflow-hidden">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-theme-primary to-theme-primary-light text-white p-4">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center space-x-3">
+                  <span className="text-2xl">{selectedCategory.icon}</span>
+                  <div>
+                    <h3 className="text-xl font-bold mb-1">{selectedCategory.title}</h3>
+                    <p className="text-sm opacity-90">{selectedCategory.count} total events • {selectedCategory.recentCount} recent</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedCategory(null)}
+                  className="text-white hover:bg-white/20 rounded-lg p-2 transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body - Scrollable */}
+            <div className="overflow-y-auto max-h-[60vh] p-4">
+              <div className="space-y-3">
+                {selectedCategory.events.slice().reverse().map((event, index) => (
+                  <div key={`${event.id}-${event.session_id}-${index}`} 
+                       className="border rounded-lg p-3 hover:shadow-md transition-shadow">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium text-white ${getTopicColors(event.session_id).background}`}>
+                          {event.session_id.slice(-6)}
+                        </span>
+                        <span className="font-semibold text-sm text-theme-text-primary">
+                          {event.hook_event_type}
+                        </span>
+                      </div>
+                      <span className="text-xs text-theme-text-tertiary">
+                        {formatTime(event.timestamp)}
+                      </span>
+                    </div>
+                    
+                    {/* Event Details */}
+                    <div className="text-sm text-theme-text-secondary">
+                      {event.payload?.prompt && (
+                        <div className="bg-blue-50 border-l-3 border-blue-400 p-2 rounded mb-2">
+                          <p className="italic">{event.payload.prompt}</p>
+                        </div>
+                      )}
+                      {event.payload?.tool_name && (
+                        <div className="flex items-center gap-2 mb-1">
+                          <span>🔧</span>
+                          <span className="font-medium">Tool:</span>
+                          <span>{event.payload.tool_name}</span>
+                        </div>
+                      )}
+                      {event.payload?.tool_input?.command && (
+                        <code className="block bg-gray-900 text-gray-100 p-2 rounded mt-1 text-xs font-mono">
+                          $ {event.payload.tool_input.command}
+                        </code>
+                      )}
+                      {event.payload?.tool_input?.file_path && (
+                        <div className="flex items-center gap-2">
+                          <span>📄</span>
+                          <code className="text-xs bg-gray-100 px-2 py-0.5 rounded">
+                            {event.payload.tool_input.file_path}
+                          </code>
+                        </div>
+                      )}
+                      {event.summary && !event.payload?.prompt && !event.payload?.tool_name && (
+                        <p className="text-theme-text-secondary">📝 {event.summary}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="border-t p-4 bg-gray-50">
+              <div className="flex justify-between text-sm text-theme-text-secondary">
+                <div>
+                  <span className="font-medium">Category:</span> {selectedCategory.title}
+                </div>
+                <div>
+                  <span className="font-medium">Total Events:</span> {selectedCategory.count}
+                </div>
+                <div>
+                  <span className="font-medium">Recent (1hr):</span> {selectedCategory.recentCount}
                 </div>
               </div>
             </div>

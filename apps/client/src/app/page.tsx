@@ -35,11 +35,19 @@ function MainContent() {
   const [currentView, setCurrentView] = useState<'master' | 'topic'>('master');
   const [selectedProject, setSelectedProject] = useState<string | undefined>(undefined);
 
-  // Calculate topic count for view switcher
+  // Calculate topic count for view switcher (conversations count)
   const topicCount = useMemo(() => {
-    const eventTypes = new Set(events.map(event => getEventType(event)));
-    return eventTypes.size;
-  }, [events, getEventType]);
+    let conversationCount = 0;
+    const sortedEvents = [...events].sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+    
+    sortedEvents.forEach(event => {
+      if (event.hook_event_type === 'UserPromptSubmit') {
+        conversationCount++;
+      }
+    });
+    
+    return conversationCount;
+  }, [events]);
 
   return (
     <div className="min-h-screen bg-theme-bg-secondary">

@@ -53,14 +53,6 @@ export function ViewSwitcher({
       </div>
 
       {/* View Description */}
-      <div className="hidden md:block">
-        <p className="text-sm text-theme-text-tertiary">
-          {currentView === 'master' 
-            ? 'Compact timeline with all events from all sessions'
-            : 'Windows 8-style topic tiles with conversation grouping'
-          }
-        </p>
-      </div>
     </div>
   );
 }
