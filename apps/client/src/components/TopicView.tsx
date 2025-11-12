@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useEventColors } from '@/hooks/useEventColors';
 import type { HookEvent } from '@/types';
 
@@ -28,6 +28,7 @@ interface TopicGroup {
   events: HookEvent[];
   count: number;
   recentCount: number; // Events in last hour
+  conversationCount: number; // Number of unique conversations
   color: string;
   icon: string;
   title: string;
@@ -38,6 +39,16 @@ export function TopicView({ events, selectedProject, onProjectChange }: TopicVie
   const [selectedConversation, setSelectedConversation] = useState<ConversationGroup | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<TopicGroup | null>(null);
   const [viewMode, setViewMode] = useState<'conversations' | 'categories'>('conversations');
+  const [currentTime, setCurrentTime] = useState(Date.now());
+  
+  // Update current time every minute for relative time display
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 60000); // Update every minute
+    
+    return () => clearInterval(interval);
+  }, []);
   
   // Get unique projects from events
   const projects = useMemo(() => {
@@ -105,7 +116,7 @@ export function TopicView({ events, selectedProject, onProjectChange }: TopicVie
     }
     
     return convos.reverse(); // Show newest first
-  }, [filteredEvents, getEventType, getTopicColors]);
+  }, [filteredEvents, getEventType, getTopicColors, currentTime]); // Added currentTime to refresh relative times
 
   // Helper functions for topic groups
   const getTopicIcon = (eventType: string): string => {
@@ -136,7 +147,37 @@ export function TopicView({ events, selectedProject, onProjectChange }: TopicVie
   const topicGroups = useMemo(() => {
     const groups = new Map<string, TopicGroup>();
     const oneHourAgo = Date.now() - (60 * 60 * 1000);
+    
+    // First, identify all conversations
+    const conversationMap = new Map<string, Set<string>>(); // eventType -> Set of conversation IDs
+    const sessionConversations = new Map<string, string>(); // sessionId -> current conversation ID
+    
+    // Sort events by timestamp and session to properly track conversations
+    const sortedEvents = [...filteredEvents].sort((a, b) => 
+      (a.timestamp || 0) - (b.timestamp || 0)
+    );
+    
+    sortedEvents.forEach(event => {
+      const sessionId = event.session_id;
+      
+      // Track conversation boundaries - each UserPromptSubmit starts a new conversation
+      if (event.hook_event_type === 'UserPromptSubmit') {
+        const conversationId = `${sessionId}-${event.timestamp}`;
+        sessionConversations.set(sessionId, conversationId);
+      }
+      
+      // If this session has an active conversation, track which event types appear in it
+      const currentConversationId = sessionConversations.get(sessionId);
+      if (currentConversationId) {
+        const eventType = getEventType(event);
+        if (!conversationMap.has(eventType)) {
+          conversationMap.set(eventType, new Set());
+        }
+        conversationMap.get(eventType)!.add(currentConversationId);
+      }
+    });
 
+    // Now group events by type and calculate stats
     filteredEvents.forEach(event => {
       const eventType = getEventType(event);
       const eventColors = getEventColors(event);
@@ -147,6 +188,7 @@ export function TopicView({ events, selectedProject, onProjectChange }: TopicVie
           events: [],
           count: 0,
           recentCount: 0,
+          conversationCount: conversationMap.get(eventType)?.size || 0,
           color: eventColors.accent.replace('bg-event-', 'topic-'),
           icon: getTopicIcon(eventType),
           title: getTopicTitle(eventType)
@@ -165,18 +207,9 @@ export function TopicView({ events, selectedProject, onProjectChange }: TopicVie
     return Array.from(groups.values()).sort((a, b) => b.count - a.count);
   }, [filteredEvents, getEventType, getEventColors]);
 
-  const getTileSize = (index: number, count: number): string => {
-    // Windows 8-style varied tile sizes
-    if (count === 0) return 'col-span-2 row-span-2 h-32';
-    
-    const patterns = [
-      'col-span-2 row-span-2 h-32', // Large tile
-      'col-span-1 row-span-2 h-32', // Tall tile
-      'col-span-2 row-span-1 h-16', // Wide tile
-      'col-span-1 row-span-1 h-16', // Small tile
-    ];
-    
-    return patterns[index % patterns.length];
+  const getTileSize = (): string => {
+    // Uniform tile size for all cards
+    return 'col-span-1 h-32';
   };
 
   // Format duration  
@@ -193,6 +226,22 @@ export function TopicView({ events, selectedProject, onProjectChange }: TopicVie
   const formatTime = (timestamp?: number) => {
     if (!timestamp) return '';
     return new Date(timestamp).toLocaleTimeString();
+  };
+  
+  const formatRelativeTime = (timestamp?: number) => {
+    if (!timestamp) return '';
+    
+    const diff = currentTime - timestamp;
+    const seconds = Math.floor(diff / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    
+    if (days > 0) return `${days} day${days > 1 ? 's' : ''} ago`;
+    if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+    if (minutes > 0) return `${minutes} min${minutes > 1 ? 's' : ''} ago`;
+    if (seconds > 30) return `${seconds} sec${seconds > 1 ? 's' : ''} ago`;
+    return 'just now';
   };
 
   return (
@@ -264,7 +313,7 @@ export function TopicView({ events, selectedProject, onProjectChange }: TopicVie
                 <div className="flex items-start justify-between mb-2">
                   <span className="text-2xl">💬</span>
                   <div className="text-right">
-                    <span className="text-xs opacity-90">{formatTime(convo.startTime)}</span>
+                    <span className="text-xs opacity-90">{formatRelativeTime(convo.startTime)}</span>
                     {convo.hasError && <span className="ml-2 text-sm">⚠️</span>}
                   </div>
                 </div>
@@ -277,16 +326,9 @@ export function TopicView({ events, selectedProject, onProjectChange }: TopicVie
 
               {/* Conversation Stats */}
               <div className="mt-auto">
-                <div className="flex justify-between items-end">
-                  <div className="text-xs opacity-90">
-                    <div>{convo.events.length} events</div>
-                    {convo.toolCount > 0 && <div>🔧 {convo.toolCount} tools</div>}
-                  </div>
-                  <div className="text-right">
-                    <div className="text-lg font-bold">
-                      {formatDuration(convo.startTime, convo.endTime)}
-                    </div>
-                  </div>
+                <div className="text-xs opacity-90">
+                  <div>{convo.events.length} events</div>
+                  {convo.toolCount > 0 && <div>🔧 {convo.toolCount} tools</div>}
                 </div>
               </div>
             </div>
@@ -309,19 +351,19 @@ export function TopicView({ events, selectedProject, onProjectChange }: TopicVie
 
       {/* Category Tiles Grid (Original View) */}
       {viewMode === 'categories' && (
-        <div className="grid grid-cols-4 gap-4 auto-rows-min">
-          {topicGroups.map((group, index) => (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {topicGroups.map((group) => (
           <div
             key={group.type}
             onClick={() => setSelectedCategory(group)}
             className={`
-              ${getTileSize(index, group.count)}
-              bg-${group.color} 
-              hover:bg-${group.color.replace('-light', '')} 
-              rounded-lg shadow-tile hover:shadow-tile-hover 
-              transition-tile cursor-pointer 
+              ${getTileSize()}
+              bg-white border border-gray-200
+              hover:border-theme-primary hover:shadow-lg
+              rounded-lg shadow-md
+              transition-all cursor-pointer 
               flex flex-col justify-between p-4 
-              text-white hover:scale-105
+              hover:scale-105
             `}
           >
             {/* Tile Header */}
@@ -329,9 +371,9 @@ export function TopicView({ events, selectedProject, onProjectChange }: TopicVie
               <div className="flex items-center space-x-2">
                 <span className="text-2xl">{group.icon}</span>
                 <div>
-                  <h3 className="font-bold text-lg leading-tight">{group.title}</h3>
+                  <h3 className="font-bold text-base leading-tight text-gray-900">{group.title}</h3>
                   {group.recentCount > 0 && (
-                    <span className="text-xs bg-white/20 px-2 py-1 rounded-full">
+                    <span className="text-xs bg-gray-200 px-2 py-1 rounded-full text-gray-700">
                       {group.recentCount} recent
                     </span>
                   )}
@@ -341,10 +383,18 @@ export function TopicView({ events, selectedProject, onProjectChange }: TopicVie
 
             {/* Tile Content */}
             <div className="mt-auto">
-              <div className="text-right">
-                <div className="text-3xl font-bold">{group.count}</div>
-                <div className="text-sm opacity-90">
-                  {group.count === 1 ? 'event' : 'events'}
+              <div className="flex justify-between items-end">
+                <div className="text-left">
+                  <div className="text-lg font-bold text-gray-900">{group.conversationCount}</div>
+                  <div className="text-xs text-gray-600">
+                    {group.conversationCount === 1 ? 'chat' : 'chats'}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-2xl font-bold text-gray-900">{group.count}</div>
+                  <div className="text-xs text-gray-600">
+                    {group.count === 1 ? 'event' : 'events'}
+                  </div>
                 </div>
               </div>
             </div>
@@ -463,7 +513,9 @@ export function TopicView({ events, selectedProject, onProjectChange }: TopicVie
                   <span className="text-2xl">{selectedCategory.icon}</span>
                   <div>
                     <h3 className="text-xl font-bold mb-1">{selectedCategory.title}</h3>
-                    <p className="text-sm opacity-90">{selectedCategory.count} total events • {selectedCategory.recentCount} recent</p>
+                    <p className="text-sm opacity-90">
+                      {selectedCategory.count} {selectedCategory.count === 1 ? 'event' : 'events'} • {selectedCategory.conversationCount} {selectedCategory.conversationCount === 1 ? 'chat' : 'chats'} • {selectedCategory.recentCount} recent
+                    </p>
                   </div>
                 </div>
                 <button
