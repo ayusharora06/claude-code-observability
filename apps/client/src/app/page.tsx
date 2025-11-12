@@ -1,10 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { useFilters } from '@/hooks/useFilters';
 import { EventCard } from '@/components/EventCard';
 import { FilterPanel } from '@/components/FilterPanel';
+import { ViewSwitcher } from '@/components/ViewSwitcher';
+import { TopicView } from '@/components/TopicView';
+import { useEventColors } from '@/hooks/useEventColors';
 import { WS_URL } from '@/config';
 
 function LoadingState() {
@@ -23,7 +26,18 @@ function LoadingState() {
 function MainContent() {
   const { events, isConnected, error, clearEvents } = useWebSocket(WS_URL);
   const { filters, filterOptions, filteredEvents, updateFilter, clearFilters, hasActiveFilters } = useFilters(events);
+  const { getEventType } = useEventColors();
+  
+  // View and filtering state
   const [showFilters, setShowFilters] = useState(false);
+  const [currentView, setCurrentView] = useState<'master' | 'topic'>('master');
+  const [selectedProject, setSelectedProject] = useState<string | undefined>(undefined);
+
+  // Calculate topic count for view switcher
+  const topicCount = useMemo(() => {
+    const eventTypes = new Set(events.map(event => getEventType(event)));
+    return eventTypes.size;
+  }, [events, getEventType]);
 
   return (
     <div className="min-h-screen bg-theme-bg-secondary">
@@ -102,39 +116,64 @@ function MainContent() {
       )}
 
       <main className="p-4">
-        <div className="mb-4">
-          <h2 className="text-lg font-semibold text-theme-text-primary mb-2">
-            Real-time Events ({filteredEvents.length}{events.length !== filteredEvents.length ? ` of ${events.length}` : ''})
-          </h2>
-        </div>
+        {/* View Switcher */}
+        <ViewSwitcher
+          currentView={currentView}
+          onViewChange={setCurrentView}
+          eventCount={filteredEvents.length}
+          topicCount={topicCount}
+        />
 
-        {filteredEvents.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="text-6xl mb-4">🔍</div>
-            <h3 className="text-xl font-medium text-theme-text-primary mb-2">
-              {events.length === 0 ? 'No events yet' : 'No events match current filters'}
-            </h3>
-            <p className="text-theme-text-secondary">
-              {events.length === 0 
-                ? 'Waiting for Claude Code hook events...' 
-                : 'Try adjusting your filters to see more events.'
-              }
-            </p>
-            {hasActiveFilters && (
-              <button
-                onClick={clearFilters}
-                className="mt-4 px-4 py-2 bg-theme-primary hover:bg-theme-primary-dark text-white rounded-lg transition-colors"
-              >
-                Clear Filters
-              </button>
+        {/* Master View - Traditional Event List */}
+        {currentView === 'master' && (
+          <div>
+            <div className="mb-4">
+              <h2 className="text-lg font-semibold text-theme-text-primary mb-2">
+                Real-time Events ({filteredEvents.length}{events.length !== filteredEvents.length ? ` of ${events.length}` : ''})
+              </h2>
+            </div>
+
+            {filteredEvents.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="text-6xl mb-4">🔍</div>
+                <h3 className="text-xl font-medium text-theme-text-primary mb-2">
+                  {events.length === 0 ? 'No events yet' : 'No events match current filters'}
+                </h3>
+                <p className="text-theme-text-secondary">
+                  {events.length === 0 
+                    ? 'Waiting for Claude Code hook events...' 
+                    : 'Try adjusting your filters to see more events.'
+                  }
+                </p>
+                {hasActiveFilters && (
+                  <button
+                    onClick={clearFilters}
+                    className="mt-4 px-4 py-2 bg-theme-primary hover:bg-theme-primary-dark text-white rounded-lg transition-colors"
+                  >
+                    Clear Filters
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {filteredEvents.slice().reverse().map((event, index) => (
+                  <EventCard 
+                    key={`${event.id || 'e'}-${event.session_id}-${event.timestamp || index}`} 
+                    event={event} 
+                  />
+                ))}
+              </div>
             )}
           </div>
-        ) : (
-          <div className="space-y-4">
-            {filteredEvents.slice().reverse().map((event, index) => (
-              <EventCard key={event.id || index} event={event} />
-            ))}
-          </div>
+        )}
+
+        {/* Topic View - Windows 8 Style Tiles */}
+        {currentView === 'topic' && (
+          <TopicView
+            events={events}
+            selectedProject={selectedProject}
+            onProjectChange={setSelectedProject}
+          />
         )}
       </main>
     </div>

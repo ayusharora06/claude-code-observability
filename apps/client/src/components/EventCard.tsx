@@ -9,45 +9,18 @@ interface EventCardProps {
   event: HookEvent;
 }
 
-// Class variant objects for reliable styling
+// Updated class variants for light theme with event-specific colors
 const cardVariants = {
-  base: "group relative p-4 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer border bg-gradient-to-r from-theme-bg-primary to-theme-bg-secondary",
-  collapsed: "border-theme-border-primary hover:border-theme-primary",
-  expanded: "ring-2 ring-theme-primary border-theme-primary shadow-2xl"
-};
-
-const colorVariants = {
-  session: {
-    gray: "bg-gradient-to-r from-gray-700 to-gray-800",
-    slate: "bg-gradient-to-r from-slate-700 to-slate-800",
-    zinc: "bg-gradient-to-r from-zinc-700 to-zinc-800",
-    neutral: "bg-gradient-to-r from-neutral-700 to-neutral-800",
-    stone: "bg-gradient-to-r from-stone-700 to-stone-800",
-    gray2: "bg-gradient-to-r from-gray-600 to-gray-700",
-    slate2: "bg-gradient-to-r from-slate-600 to-slate-700",
-    zinc2: "bg-gradient-to-r from-zinc-600 to-zinc-700",
-    neutral2: "bg-gradient-to-r from-neutral-600 to-neutral-700",
-    stone2: "bg-gradient-to-r from-stone-600 to-stone-700"
-  },
-  border: {
-    gray: "border-gray-600",
-    slate: "border-slate-600", 
-    zinc: "border-zinc-600",
-    neutral: "border-neutral-600",
-    stone: "border-stone-600",
-    gray2: "border-gray-500",
-    slate2: "border-slate-500",
-    zinc2: "border-zinc-500",
-    neutral2: "border-neutral-500",
-    stone2: "border-stone-500"
-  }
+  base: "group relative p-4 rounded-lg shadow-card hover:shadow-card-hover transition-card duration-300 cursor-pointer bg-white border-l-4",
+  collapsed: "border-theme-border-primary",
+  expanded: "ring-2 ring-theme-primary shadow-2xl"
 };
 
 export function EventCard({ event }: EventCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [copyButtonText, setCopyButtonText] = useState('📋 Copy');
 
-  const { getColorKeyForSession, getColorKeyForApp, getHexColorForApp } = useEventColors();
+  const { getEventColors, getHexColorForEvent, getTopicColors } = useEventColors();
   const { getEmojiForEventType } = useEventEmojis();
 
   const toggleExpanded = useCallback(() => {
@@ -157,15 +130,16 @@ export function EventCard({ event }: EventCardProps) {
 
   const sessionIdShort = event.session_id.slice(0, 8);
   const hookEmoji = getEmojiForEventType(event.hook_event_type);
-  const sessionColorKey = getColorKeyForSession(event.session_id);
-  const appColorKey = getColorKeyForApp(event.source_app);
-  const appHexColor = getHexColorForApp(event.source_app);
   const toolInfo = getToolInfo();
 
-  // Get classes from variant objects
-  const cardClasses = `${cardVariants.base} ${isExpanded ? cardVariants.expanded : cardVariants.collapsed}`;
-  const sessionGradient = colorVariants.session[sessionColorKey];
-  const sessionBorder = colorVariants.border[sessionColorKey];
+  // Get event-specific colors for the new light theme
+  const eventColors = getEventColors(event);
+  const sessionColors = getTopicColors(event.session_id);
+  const appColors = getTopicColors(event.source_app);
+  const eventHexColor = getHexColorForEvent(event);
+
+  // Build card classes with event-specific border color
+  const cardClasses = `${cardVariants.base} ${eventColors.border} ${isExpanded ? cardVariants.expanded : cardVariants.collapsed}`;
 
   return (
     <div>
@@ -190,12 +164,11 @@ export function EventCard({ event }: EventCardProps) {
             </div>
             <div className="flex items-center space-x-2 ml-9">
               <span
-                className="text-xs font-semibold text-theme-text-primary px-1.5 py-0.5 rounded-full border-2 bg-theme-bg-tertiary shadow-sm"
-                style={{ backgroundColor: appHexColor + '33', borderColor: appHexColor }}
+                className={`text-xs font-semibold text-white px-1.5 py-0.5 rounded-full ${appColors.background} shadow-sm`}
               >
                 {event.source_app}
               </span>
-              <span className={`text-xs text-theme-text-secondary px-1.5 py-0.5 rounded-full border bg-theme-bg-tertiary/50 shadow-sm ${sessionBorder}`}>
+              <span className={`text-xs text-white px-1.5 py-0.5 rounded-full ${sessionColors.background} shadow-sm`}>
                 {sessionIdShort}
               </span>
               <span className="text-xs text-theme-text-tertiary font-medium">
@@ -218,16 +191,7 @@ export function EventCard({ event }: EventCardProps) {
           className={cardClasses}
           onClick={toggleExpanded}
         >
-          {/* App color indicator */}
-          <div 
-            className="absolute left-0 top-0 bottom-0 w-3 rounded-l-lg"
-            style={{ backgroundColor: appHexColor }}
-          />
-          
-          {/* Session color indicator */}
-          <div className={`absolute left-3 top-0 bottom-0 w-1.5 ${sessionGradient}`} />
-          
-          <div className="ml-4">
+          <div className="w-full">
             {/* New Header Layout: Topic | Hook Name | Session ──── App Name */}
             <div className="flex items-start justify-between mb-2">
               <div className="flex items-center space-x-4">
@@ -247,23 +211,20 @@ export function EventCard({ event }: EventCardProps) {
                 )}
                 
                 {/* Hook Name */}
-                <span className="inline-flex items-center px-3 py-0.5 rounded-full text-sm font-bold bg-theme-primary text-white shadow-lg">
+                <span className={`inline-flex items-center px-3 py-0.5 rounded-full text-sm font-bold text-white shadow-lg ${eventColors.accent}`}>
                   <span className="mr-1.5 text-base">{hookEmoji}</span>
                   {event.hook_event_type}
                 </span>
                 
                 {/* Session ID */}
-                <span className={`text-sm text-theme-text-secondary px-2 py-0.5 rounded-full border bg-theme-bg-tertiary/50 shadow-md ${sessionBorder}`}>
+                <span className={`text-sm text-white px-2 py-0.5 rounded-full shadow-md ${sessionColors.background}`}>
                   {sessionIdShort}
                 </span>
               </div>
               
               {/* Right Side: App Name + Time */}
               <div className="flex flex-col items-end">
-                <span
-                  className="text-base font-bold text-theme-text-primary px-2 py-0.5 rounded-full border-2 bg-theme-bg-tertiary shadow-lg"
-                  style={{ backgroundColor: appHexColor + '33', borderColor: appHexColor }}
-                >
+                <span className={`text-base font-bold text-white px-2 py-0.5 rounded-full shadow-lg ${appColors.background}`}>
                   {event.source_app}
                 </span>
                 <span className="text-sm text-theme-text-tertiary font-semibold mt-1">
@@ -275,7 +236,7 @@ export function EventCard({ event }: EventCardProps) {
             {/* Model Info Row (if available) */}
             {event.model_name && (
               <div className="flex items-center mb-2">
-                <span className="text-sm text-theme-text-secondary px-2 py-0.5 rounded-full border bg-theme-bg-tertiary/50 shadow-md" title={`Model: ${event.model_name}`}>
+                <span className="text-sm text-theme-text-secondary px-2 py-0.5 rounded-full border border-theme-border-secondary bg-theme-bg-secondary shadow-md" title={`Model: ${event.model_name}`}>
                   <span className="mr-1">🧠</span>{formatModelName(event.model_name)}
                 </span>
               </div>
@@ -284,7 +245,7 @@ export function EventCard({ event }: EventCardProps) {
             {/* Summary */}
             {event.summary && (
               <div className="flex justify-center mb-2">
-                <div className="px-3 py-1.5 bg-theme-primary/10 border border-theme-primary/30 rounded-lg shadow-md">
+                <div className={`px-3 py-1.5 ${eventColors.background} border ${eventColors.borderFull} rounded-lg shadow-md`}>
                   <span className="text-sm text-theme-text-primary font-semibold">
                     <span className="mr-1">📝</span>
                     {event.summary}
@@ -295,7 +256,7 @@ export function EventCard({ event }: EventCardProps) {
             
             {/* Expanded content */}
             {isExpanded && (
-              <div className="mt-2 pt-2 border-t-2 border-theme-primary bg-gradient-to-r from-theme-bg-primary to-theme-bg-secondary rounded-b-lg p-3 space-y-3">
+              <div className={`mt-2 pt-2 border-t-2 ${eventColors.borderFull} bg-theme-bg-secondary rounded-b-lg p-3 space-y-3`}>
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <h4 className="text-base font-bold text-theme-primary drop-shadow-sm flex items-center">
