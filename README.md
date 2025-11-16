@@ -1,6 +1,6 @@
-# Claude Code Observability System
+# 🔍 Multi-Agent Observability Dashboard
 
-A complete observability system for Claude Code hooks using Express.js + Next.js, providing real-time monitoring of Claude Code operations.
+Real-time observability dashboard for Claude Code (Anthropic's AI coding assistant) that captures, visualizes, and analyzes every action taken by AI agents during code generation.
 
 ## 🏗️ Architecture
 
@@ -26,22 +26,48 @@ claude-code-observability/
 
 ## ✨ Features
 
-### Implemented
-- ✅ **Complete Hook Integration**: All Claude Code hook events captured
-- ✅ **Express.js Backend**: RESTful API with SQLite database
-- ✅ **Real-time WebSocket**: Live event streaming
-- ✅ **Next.js Frontend**: Modern React dashboard
-- ✅ **Event Display**: Beautiful event cards with timestamps
-- ✅ **Hook Chain Fix**: UserPromptSubmit now captures prompt content correctly
-- ✅ **Complete Database Schema**: Events, themes, theme shares, and ratings tables
-- ✅ **HITL Support**: Human-in-the-Loop workflow infrastructure
-- ✅ **Theme Management**: Complete theme CRUD operations
+### 📊 Dual-View System
 
-### Ready for Extension
-- 🔧 **Advanced Filtering**: Backend supports full filtering by source app, session, event type
-- 🔧 **Agent Visualization**: AgentSwimLane and LivePulseChart components ready to implement
-- 🔧 **Theme Sharing**: Complete theme sharing and rating system in database
-- 🔧 **Export/Import**: Theme export and import functionality ready
+#### Timeline View (Master)
+- **Live Event Streaming**: See all events from all sessions in real-time
+- **Expandable Cards**: 3-state cards (collapsed → hover preview → fully expanded)
+- **Session Tracking**: Color-coded session badges for easy identification
+- **Smart Filtering**: Filter by event type, session, project, or time range
+- **Relative Timestamps**: Auto-updating "2 mins ago" style timestamps
+
+#### Topic View
+Two powerful sub-views for different perspectives:
+
+**Conversations Tab:**
+- Groups events from user prompt to completion
+- Shows conversation flow with relative timestamps
+- Tracks tool usage per conversation
+- Visual error indicators
+
+**Categories Tab:**
+- Organizes events by type (Tools, Prompts, Sessions, etc.)
+- Shows total events and unique conversation counts
+- Click to see all events in that category
+- Recent activity indicators
+
+### 🚀 Real-time Capabilities
+- **WebSocket Connection**: Live bidirectional communication
+- **Exponential Backoff**: Automatic reconnection with smart retry logic
+- **Connection Status**: Visual indicators for connected/reconnecting states
+- **Event Limiting**: Configurable max events (default 300) to prevent memory issues
+
+### 🎨 Modern UI/UX
+- **Clean Design**: Light theme with proper contrast
+- **Responsive Layout**: Works on mobile, tablet, and desktop
+- **Interactive Elements**: Hover effects, smooth transitions, click-to-expand
+- **Copy to Clipboard**: One-click payload copying for debugging
+
+### 🔧 Backend Features
+- **Complete Hook Integration**: All Claude Code hook events captured
+- **Express.js Backend**: RESTful API with SQLite database
+- **Real-time WebSocket**: Live event streaming
+- **Complete Database Schema**: Events, themes, theme shares, and ratings tables
+- **HITL Support**: Human-in-the-Loop workflow infrastructure
 
 ## 🚀 Quick Start
 
