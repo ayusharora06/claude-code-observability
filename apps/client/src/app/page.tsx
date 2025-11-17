@@ -186,7 +186,7 @@ function MainContent() {
                 <div className="space-y-0">
                   {filteredEvents.slice().reverse().map((event, index) => (
                     <CompactEventCard 
-                      key={`${event.id || 'e'}-${event.session_id}-${event.timestamp || index}`} 
+                      key={`event-${event.id}-${index}-${Date.now()}`} 
                       event={event}
                       isFirst={index === 0}
                       isLast={index === filteredEvents.length - 1}

@@ -18,8 +18,21 @@ import {
 // Initialize database
 initDatabase();
 
-// Store WebSocket clients
+// Store WebSocket clients and track sent event IDs to prevent duplicates
 const wsClients = new Set<WebSocket>();
+const recentEventIds = new Map<number, number>(); // eventId -> timestamp
+const MAX_RECENT_EVENTS = 1000;
+const RECENT_EVENT_TIMEOUT = 5000; // 5 seconds
+
+// Clean up old event IDs periodically
+setInterval(() => {
+  const now = Date.now();
+  for (const [eventId, timestamp] of recentEventIds.entries()) {
+    if (now - timestamp > RECENT_EVENT_TIMEOUT) {
+      recentEventIds.delete(eventId);
+    }
+  }
+}, 10000); // Clean every 10 seconds
 
 // Helper function to send response to agent via WebSocket
 async function sendResponseToAgent(
@@ -130,18 +143,30 @@ app.post('/events', async (req, res) => {
     // Insert event into database
     const savedEvent = insertEvent(event);
     
-    // Broadcast to all WebSocket clients (matching Bun format)
-    const message = JSON.stringify({ type: 'event', data: savedEvent });
-    wsClients.forEach(client => {
-      try {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(message);
-        }
-      } catch (err) {
-        // Client disconnected, remove from set
-        wsClients.delete(client);
+    // Check if we've recently broadcast this event to prevent duplicates
+    if (!recentEventIds.has(savedEvent.id)) {
+      // Mark event as sent
+      recentEventIds.set(savedEvent.id, Date.now());
+      
+      // Keep map size under control
+      if (recentEventIds.size > MAX_RECENT_EVENTS) {
+        const oldestId = recentEventIds.keys().next().value;
+        recentEventIds.delete(oldestId);
       }
-    });
+      
+      // Broadcast to all WebSocket clients (matching Bun format)
+      const message = JSON.stringify({ type: 'event', data: savedEvent });
+      wsClients.forEach(client => {
+        try {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(message);
+          }
+        } catch (err) {
+          // Client disconnected, remove from set
+          wsClients.delete(client);
+        }
+      });
+    }
     
     res.json(savedEvent);
   } catch (error) {
@@ -191,17 +216,29 @@ app.post('/events/:id/respond', async (req, res) => {
       }
     }
 
-    // Broadcast updated event to all connected clients
-    const message = JSON.stringify({ type: 'event', data: updatedEvent });
-    wsClients.forEach(client => {
-      try {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(message);
-        }
-      } catch (err) {
-        wsClients.delete(client);
+    // Check if we've recently broadcast this event to prevent duplicates
+    if (!recentEventIds.has(updatedEvent.id)) {
+      // Mark event as sent
+      recentEventIds.set(updatedEvent.id, Date.now());
+      
+      // Keep map size under control
+      if (recentEventIds.size > MAX_RECENT_EVENTS) {
+        const oldestId = recentEventIds.keys().next().value;
+        recentEventIds.delete(oldestId);
       }
-    });
+      
+      // Broadcast updated event to all connected clients
+      const message = JSON.stringify({ type: 'event', data: updatedEvent });
+      wsClients.forEach(client => {
+        try {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(message);
+          }
+        } catch (err) {
+          wsClients.delete(client);
+        }
+      });
+    }
 
     res.json(updatedEvent);
   } catch (error) {
@@ -354,6 +391,14 @@ const wss = new WebSocketServer({
 
 wss.on('connection', (ws) => {
   console.log('WebSocket client connected');
+  
+  // Remove any existing connection from the same client
+  wsClients.forEach(client => {
+    if (client === ws) {
+      wsClients.delete(client);
+    }
+  });
+  
   wsClients.add(ws);
   
   // Send recent events on connection (matching Bun format exactly)
@@ -373,6 +418,20 @@ wss.on('connection', (ws) => {
   ws.on('error', (error) => {
     console.error('WebSocket error:', error);
     wsClients.delete(ws);
+  });
+  
+  // Ping client periodically to detect stale connections
+  const pingInterval = setInterval(() => {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.ping();
+    } else {
+      clearInterval(pingInterval);
+      wsClients.delete(ws);
+    }
+  }, 30000); // Ping every 30 seconds
+  
+  ws.on('pong', () => {
+    // Client is still alive
   });
 });
 

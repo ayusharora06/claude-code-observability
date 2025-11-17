@@ -5,7 +5,7 @@ import type { HookEvent, FilterOptions, Theme, ThemeSearchQuery, ThemeShare, The
 export class ObservabilityDatabase {
   private db: Database;
 
-  constructor(dbPath: string = 'events.db') {
+  constructor(dbPath: string = '../../data/events.db') {
     this.db = new sqlite3.Database(dbPath, (err) => {
       if (err) {
         console.error('Error opening database:', err);

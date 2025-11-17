@@ -20,9 +20,12 @@ out/
 .env.production.local
 
 # Database files
+data/
 *.db
 *.sqlite
 *.sqlite3
+*.db-shm
+*.db-wal
 events.db
 
 # Logs

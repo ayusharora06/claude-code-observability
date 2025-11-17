@@ -4,7 +4,7 @@ import type { HookEvent, FilterOptions, HumanInTheLoopResponse } from './types';
 let db: Database.Database;
 
 export function initDatabase(): void {
-  db = new Database('events.db');
+  db = new Database('../../data/events.db');
   
   // Enable WAL mode for better concurrent performance
   db.exec('PRAGMA journal_mode = WAL');
